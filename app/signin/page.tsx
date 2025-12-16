@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react'
 import { useRouter } from 'next/navigation'
 import { useAuth } from '@/contexts/AuthContext'
+import { auth } from '@/lib/firebase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Card } from '@/components/ui/card'
@@ -16,33 +17,21 @@ export default function SignInPage() {
   const { user, signIn, signUp, signInWithGoogle, loading: authLoading } = useAuth()
   const router = useRouter()
 
-  // Redirect if already authenticated
+  // Clear any stored credentials on mount to force fresh login
   useEffect(() => {
-    // Check if any user is logged in via localStorage (client-side only)
     if (typeof window !== 'undefined') {
-      const storedUser = localStorage.getItem('user')
-      if (storedUser) {
-        try {
-          const userData = JSON.parse(storedUser)
-          if (userData.email === 'adimahna@gmail.com') {
-            router.push('/dashboard')
-            return
-          } else {
-            // Regular user - redirect to their first allowed campaign
-            // This will be handled by the API response, but for now redirect to dashboard
-            console.log('User already logged in:', userData.email)
-          }
-        } catch (e) {
-          console.error('Error parsing stored user:', e)
-        }
+      // Clear any stored user credentials (including session indicators)
+      localStorage.removeItem('user')
+      sessionStorage.removeItem('userPassword')
+      // Sign out from Firebase to clear any active session
+      // This ensures users must login through this page every time
+      if (auth) {
+        auth.signOut().catch(() => {
+          // Ignore errors if already signed out
+        })
       }
     }
-    
-    // Regular Firebase auth check
-    if (user && !authLoading) {
-      router.push('/dashboard')
-    }
-  }, [user, authLoading, router])
+  }, [])
 
   const handleEmailAuth = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -51,13 +40,15 @@ export default function SignInPage() {
     try {
       // Check for admin authentication using our user system
       if (email === 'adimahna@gmail.com' && password === 'admin123') {
-        // Store admin user session in localStorage for our permission system
+        // Store session indicator (email only, no password in localStorage) for navigation
+        // Password stored in sessionStorage (cleared on tab close) for API calls only
         localStorage.setItem('user', JSON.stringify({
           email: email,
-          password: password, // Note: In production, never store passwords in localStorage
           displayName: 'Admin User',
-          loginTime: Date.now()
+          loginTime: Date.now(),
+          isAdmin: true
         }))
+        sessionStorage.setItem('userPassword', password)
         toast.success('Signed in successfully!')
         router.push('/dashboard')
         return
@@ -75,12 +66,16 @@ export default function SignInPage() {
 
         if (response.ok) {
           const userData = await response.json()
+          // Store session indicator (email only, no password in localStorage) for navigation
+          // Password stored in sessionStorage (cleared on tab close) for API calls only
           localStorage.setItem('user', JSON.stringify({
             email: email,
-            password: password,
             displayName: userData.user.displayName,
-            loginTime: Date.now()
+            loginTime: Date.now(),
+            isAdmin: userData.isAdmin,
+            allowedCampaigns: userData.allowedCampaigns
           }))
+          sessionStorage.setItem('userPassword', password)
           toast.success('Signed in successfully!')
           
           // Redirect to first allowed campaign or dashboard
@@ -179,6 +174,7 @@ export default function SignInPage() {
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   className="w-full pl-11 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  autoComplete="off"
                   required
                 />
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />
@@ -197,6 +193,7 @@ export default function SignInPage() {
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   className="w-full pl-11 pr-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all"
+                  autoComplete="off"
                   required
                 />
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-slate-400" />

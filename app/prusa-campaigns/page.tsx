@@ -118,8 +118,9 @@ export default function PrusaCampaignsPage() {
         if (storedUser) {
           const userData = JSON.parse(storedUser)
           email = userData.email
-          password = userData.password
-          console.log('📱 Retrieved credentials:', { email })
+          // Get password from sessionStorage (not localStorage) - cleared on tab close
+          password = typeof window !== 'undefined' ? sessionStorage.getItem('userPassword') || '' : ''
+          console.log('📱 Retrieved credentials:', { email, hasPassword: !!password })
         }
         
         // For admin users, set permissions directly without API call
@@ -158,7 +159,16 @@ export default function PrusaCampaignsPage() {
         console.log('🔥 Retrieved Firebase credentials:', { email })
       }
 
-      if (!email || !password) {
+      if (!email) {
+        console.log('❌ No email found, redirecting to signin')
+        router.push('/signin')
+        return
+      }
+
+      // If password is missing from sessionStorage, redirect to signin
+      if (!password && (isAdminAuth || isRegularUserAuth)) {
+        console.log('❌ No password found in sessionStorage, redirecting to signin')
+        localStorage.removeItem('user')
         router.push('/signin')
         return
       }
