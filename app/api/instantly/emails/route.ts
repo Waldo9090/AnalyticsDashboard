@@ -105,13 +105,15 @@ export async function GET(request: NextRequest) {
               'PRUSA external company 7.9M+',
               'PRUSA New Compass Leads',
               'PRUSA Compass 7.9M+',
-              'PRUSA Target Company 7.9M+'
+              'PRUSA Target Company 7.9M+',
+              'PRUSA Florida Campaign'
             ]
             
             prusaCampaigns = prusaData
               .filter((campaign: any) => 
                 allowedPrusaCampaigns.includes(campaign.campaign_name) ||
-                campaign.campaign_id === '43daa37e-1973-4e90-b8d5-5f218885e12d' // Specific campaign ID
+                campaign.campaign_id === '43daa37e-1973-4e90-b8d5-5f218885e12d' || // PRUSA New York
+                campaign.campaign_id === '25057551-6b40-45fe-97a9-2b5e3db3bafd' // PRUSA Florida Campaign
               )
               .map((campaign: any) => ({
                 id: `prusa-${campaign.campaign_id}`,

@@ -95,7 +95,8 @@ export async function GET(request: NextRequest) {
         'PRUSA external company 7.9M+',
         'PRUSA New Compass Leads',
         'PRUSA Compass 7.9M+',
-        'PRUSA Target Company 7.9M+'
+        'PRUSA Target Company 7.9M+',
+        'PRUSA Florida Campaign'
       ]
       filteredCampaigns = campaigns.filter((campaign: any) => 
         allowedPrusaCampaigns.includes(campaign.name)

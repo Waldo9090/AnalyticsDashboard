@@ -103,7 +103,8 @@ export async function POST(request: NextRequest) {
               'PRUSA external company 7.9M+',
               'PRUSA New Compass Leads',
               'PRUSA Compass 7.9M+',
-              'PRUSA Target Company 7.9M+'
+              'PRUSA Target Company 7.9M+',
+              'PRUSA Florida Campaign'
             ]
             
             const prusaCampaigns = prusaData

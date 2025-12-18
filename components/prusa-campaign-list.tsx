@@ -36,7 +36,8 @@ const PRUSA_CAMPAIGN_IDS = [
   'f7275204-8c5f-449f-bb02-58e4027ecca8',
   'de0864ce-252a-4aa2-8cb7-e33e55ad5997',
   'f211938a-9ffe-4262-9001-6e36892ba127',
-  '51bab480-545d-4241-94e5-26d9e3fe34ad'
+  '51bab480-545d-4241-94e5-26d9e3fe34ad',
+  '25057551-6b40-45fe-97a9-2b5e3db3bafd' // PRUSA Florida Campaign
 ]
 
 // Mock data for when API fails
