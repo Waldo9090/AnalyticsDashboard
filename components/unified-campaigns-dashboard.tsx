@@ -74,6 +74,10 @@ export function UnifiedCampaignsDashboard({
   const [expandedCampaigns, setExpandedCampaigns] = useState<Set<string>>(new Set())
   const [hasUnsavedChanges, setHasUnsavedChanges] = useState(false)
   const [isSaving, setIsSaving] = useState(false)
+  const [campaignAnalyticsOverview, setCampaignAnalyticsOverview] = useState<Record<string, any>>({})
+  const [loadingAnalytics, setLoadingAnalytics] = useState(false)
+  const [detailedCampaignAnalytics, setDetailedCampaignAnalytics] = useState<Record<string, any>>({})
+  const [loadingDetailedAnalytics, setLoadingDetailedAnalytics] = useState<Record<string, boolean>>({})
 
   // Check if current user is admin (including localStorage check)
   const storedUser = typeof window !== 'undefined' ? localStorage.getItem('user') : null
@@ -89,13 +93,74 @@ export function UnifiedCampaignsDashboard({
                   storedUserData?.email === 'adimstuff@gmail.com'
 
   // Toggle expanded campaign
-  const toggleExpandedCampaign = (campaignId: string) => {
+  const toggleExpandedCampaign = async (campaignId: string) => {
+    const isCurrentlyExpanded = expandedCampaigns.has(campaignId)
+    
     setExpandedCampaigns(prev => {
       const newExpanded = new Set(prev)
       if (newExpanded.has(campaignId)) {
         newExpanded.delete(campaignId)
       } else {
         newExpanded.add(campaignId)
+      }
+      return newExpanded
+    })
+
+    // Fetch detailed analytics when expanding
+    if (!isCurrentlyExpanded && !detailedCampaignAnalytics[campaignId]) {
+      const campaign = campaigns.find(c => c.campaignId === campaignId)
+      if (campaign) {
+        await fetchDetailedCampaignAnalytics(campaignId, campaign.workspaceId)
+      }
+    }
+  }
+
+  const fetchDetailedCampaignAnalytics = async (campaignId: string, workspaceId: string) => {
+    setLoadingDetailedAnalytics(prev => ({ ...prev, [campaignId]: true }))
+    try {
+      const cleanCampaignId = campaignId.replace(/^(roger|reachify|prusa)-/, '')
+      const endDate = new Date()
+      const startDate = new Date()
+      startDate.setDate(endDate.getDate() - 30)
+      
+      const params = new URLSearchParams()
+      params.append('id', cleanCampaignId)
+      params.append('workspace_id', workspaceId)
+      params.append('start_date', startDate.toISOString().split('T')[0])
+      params.append('end_date', endDate.toISOString().split('T')[0])
+      params.append('exclude_total_leads_count', 'false')
+
+      const response = await fetch(`/api/instantly/campaigns-analytics?${params.toString()}`)
+      
+      if (response.ok) {
+        const data = await response.json()
+        if (Array.isArray(data) && data.length > 0) {
+          console.log(`Detailed analytics for ${campaignId}:`, data[0])
+          console.log(`Bounced count:`, data[0].bounced_count)
+          setDetailedCampaignAnalytics(prev => ({
+            ...prev,
+            [campaignId]: data[0]
+          }))
+        }
+      } else {
+        const errorData = await response.json().catch(() => ({}))
+        console.error(`Failed to fetch detailed analytics for ${campaignId}:`, errorData)
+      }
+    } catch (error) {
+      console.error(`Error fetching detailed analytics for campaign ${campaignId}:`, error)
+    } finally {
+      setLoadingDetailedAnalytics(prev => ({ ...prev, [campaignId]: false }))
+    }
+  }
+
+  const toggleMessagesDisplay = (campaignId: string) => {
+    setExpandedCampaigns(prev => {
+      const newExpanded = new Set(prev)
+      const messagesKey = `${campaignId}-messages`
+      if (newExpanded.has(messagesKey)) {
+        newExpanded.delete(messagesKey)
+      } else {
+        newExpanded.add(messagesKey)
       }
       return newExpanded
     })
@@ -114,7 +179,7 @@ export function UnifiedCampaignsDashboard({
     })
   }
 
-  // Save campaign selections
+  // Save campaign selections - global admin selection
   const saveCampaignSelections = async () => {
     if (!isAdmin) return
     
@@ -124,18 +189,23 @@ export function UnifiedCampaignsDashboard({
         .filter(c => c.selected)
         .map(c => c.campaignId)
 
+      // Save to localStorage immediately for persistence
+      localStorage.setItem('admin-selected-campaigns', JSON.stringify(selectedCampaignIds))
+
+      // Save to backend for cross-device persistence
       const response = await fetch('/api/admin/campaign-preferences', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          category: defaultCategory,
+          category: 'admin', // Use 'admin' as the global category
           selectedCampaigns: selectedCampaignIds
         })
       })
 
       if (response.ok) {
         setHasUnsavedChanges(false)
-        // Show success message or toast
+        // Reload the page to apply the filter
+        window.location.reload()
       } else {
         throw new Error('Failed to save preferences')
       }
@@ -147,20 +217,16 @@ export function UnifiedCampaignsDashboard({
     }
   }
 
-  // Get selected campaigns and determine display category
-  const selectedCampaigns = campaigns.filter(c => c.selected)
-  const selectedCategories = [...new Set(selectedCampaigns.map(c => c.category))]
-  const displayCategory = selectedCategories.length === 1 ? selectedCategories[0] : 'all'
-
-  // Load saved preferences
+  // Load saved preferences - global admin selection
   const loadSavedPreferences = async () => {
+    if (!isAdmin) return []
+    
     // First try localStorage for immediate access
     try {
-      const localStorageKey = `campaign-selections-${defaultCategory}`
-      const localSavedIds = localStorage.getItem(localStorageKey)
+      const localSavedIds = localStorage.getItem('admin-selected-campaigns')
       if (localSavedIds) {
         const parsedIds = JSON.parse(localSavedIds)
-        console.log(`Loaded ${defaultCategory} campaign selections from localStorage:`, parsedIds)
+        console.log('Loaded admin campaign selections from localStorage:', parsedIds)
         return parsedIds
       }
     } catch (error) {
@@ -172,14 +238,14 @@ export function UnifiedCampaignsDashboard({
       const response = await fetch('/api/admin/campaign-preferences')
       if (response.ok) {
         const preferences = await response.json()
-        const apiSavedIds = preferences[defaultCategory] || []
+        const apiSavedIds = preferences.admin || []
         
         // Save to localStorage for future quick access
         if (apiSavedIds.length > 0) {
-          localStorage.setItem(`campaign-selections-${defaultCategory}`, JSON.stringify(apiSavedIds))
+          localStorage.setItem('admin-selected-campaigns', JSON.stringify(apiSavedIds))
         }
         
-        console.log(`Loaded ${defaultCategory} campaign selections from API:`, apiSavedIds)
+        console.log('Loaded admin campaign selections from API:', apiSavedIds)
         return apiSavedIds
       }
     } catch (error) {
@@ -187,6 +253,29 @@ export function UnifiedCampaignsDashboard({
     }
     return []
   }
+
+  // Get selected campaigns and determine display category
+  // If admin has saved selections, only show selected campaigns
+  const [hasSavedSelections, setHasSavedSelections] = useState(false)
+  
+  useEffect(() => {
+    const checkSavedSelections = async () => {
+      const savedIds = await loadSavedPreferences()
+      setHasSavedSelections(savedIds.length > 0)
+    }
+    if (isAdmin) {
+      checkSavedSelections()
+    }
+  }, [isAdmin])
+  
+  const selectedCampaigns = campaigns.filter(c => c.selected)
+  const selectedCategories = [...new Set(selectedCampaigns.map(c => c.category))]
+  const displayCategory = selectedCategories.length === 1 ? selectedCategories[0] : 'all'
+  
+  // Filter campaigns to only show selected ones if admin has saved selections
+  const displayCampaigns = isAdmin && hasSavedSelections 
+    ? campaigns.filter(c => c.selected)
+    : campaigns
 
   useEffect(() => {
     async function fetchAllCampaigns() {
@@ -230,6 +319,8 @@ export function UnifiedCampaignsDashboard({
                 const prefixedId = `${category}-${campaignId}`
                 
                 // Check if this campaign is in saved preferences
+                // If admin has saved selections, only select those campaigns
+                // Otherwise, show all campaigns for the default category
                 const isSelected = savedCampaignIds.length > 0 
                   ? savedCampaignIds.includes(campaignId) || savedCampaignIds.includes(prefixedId)
                   : (defaultCategory === 'all' || defaultCategory === category)
@@ -271,6 +362,11 @@ export function UnifiedCampaignsDashboard({
 
         setCampaigns(allCampaignsData)
         setTotals(aggregatedTotals)
+        
+        // Fetch analytics overview for all campaigns
+        if (allCampaignsData.length > 0) {
+          fetchCampaignsAnalyticsOverview(allCampaignsData)
+        }
       } catch (err) {
         console.error('Error fetching campaigns:', err)
         setError(err instanceof Error ? err.message : 'Failed to fetch campaigns')
@@ -282,6 +378,70 @@ export function UnifiedCampaignsDashboard({
     fetchAllCampaigns()
   }, [defaultCategory])
 
+  // Fetch analytics overview for campaigns
+  const fetchCampaignsAnalyticsOverview = async (campaignsData: Campaign[]) => {
+    setLoadingAnalytics(true)
+    try {
+      // Group campaigns by workspace
+      const campaignsByWorkspace: Record<string, Campaign[]> = {}
+      campaignsData.forEach(campaign => {
+        const workspaceId = campaign.workspaceId || '1'
+        if (!campaignsByWorkspace[workspaceId]) {
+          campaignsByWorkspace[workspaceId] = []
+        }
+        campaignsByWorkspace[workspaceId].push(campaign)
+      })
+
+      // Fetch analytics for each workspace
+      const analyticsPromises = Object.entries(campaignsByWorkspace).map(async ([workspaceId, campaigns]) => {
+        const campaignIds = campaigns.map(c => c.campaignId.replace(/^(roger|reachify|prusa)-/, ''))
+        
+        try {
+          const response = await fetch('/api/instantly/campaigns-analytics-overview', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              campaignIds,
+              workspaceId,
+              startDate: undefined,
+              endDate: undefined
+            })
+          })
+
+          if (response.ok) {
+            const analyticsData = await response.json()
+            
+            // Convert array to object keyed by campaign ID
+            const analyticsMap: Record<string, any> = {}
+            analyticsData.forEach((item: any) => {
+              // Match with prefixed ID - try both with and without prefix matching
+              const matchingCampaign = campaigns.find(c => {
+                const cleanCampaignId = c.campaignId.replace(/^(roger|reachify|prusa)-/, '')
+                return cleanCampaignId === item.campaign_id || c.campaignId === item.campaign_id
+              })
+              if (matchingCampaign) {
+                analyticsMap[matchingCampaign.campaignId] = item
+              }
+            })
+            return analyticsMap
+          }
+        } catch (error) {
+          console.error(`Error fetching analytics for workspace ${workspaceId}:`, error)
+        }
+        return {}
+      })
+
+      const results = await Promise.all(analyticsPromises)
+      // Merge all workspace analytics
+      const mergedAnalytics = Object.assign({}, ...results)
+      setCampaignAnalyticsOverview(mergedAnalytics)
+    } catch (error) {
+      console.error('Error fetching campaigns analytics overview:', error)
+    } finally {
+      setLoadingAnalytics(false)
+    }
+  }
+
   const toggleCampaignSelection = (campaignId: string) => {
     setCampaigns(prev => {
       const updated = prev.map(campaign => 
@@ -290,9 +450,11 @@ export function UnifiedCampaignsDashboard({
           : campaign
       )
       
-      // Save to localStorage immediately for persistence
-      const selectedIds = updated.filter(c => c.selected).map(c => c.campaignId)
-      localStorage.setItem(`campaign-selections-${defaultCategory}`, JSON.stringify(selectedIds))
+      // Save to localStorage immediately for persistence (admin global selection)
+      if (isAdmin) {
+        const selectedIds = updated.filter(c => c.selected).map(c => c.campaignId)
+        localStorage.setItem('admin-selected-campaigns', JSON.stringify(selectedIds))
+      }
       
       return updated
     })
@@ -303,9 +465,11 @@ export function UnifiedCampaignsDashboard({
     setCampaigns(prev => {
       const updated = prev.map(campaign => ({ ...campaign, selected: true }))
       
-      // Save to localStorage
-      const selectedIds = updated.map(c => c.campaignId)
-      localStorage.setItem(`campaign-selections-${defaultCategory}`, JSON.stringify(selectedIds))
+      // Save to localStorage (admin global selection)
+      if (isAdmin) {
+        const selectedIds = updated.map(c => c.campaignId)
+        localStorage.setItem('admin-selected-campaigns', JSON.stringify(selectedIds))
+      }
       
       return updated
     })
@@ -316,8 +480,10 @@ export function UnifiedCampaignsDashboard({
     setCampaigns(prev => {
       const updated = prev.map(campaign => ({ ...campaign, selected: false }))
       
-      // Save to localStorage
-      localStorage.setItem(`campaign-selections-${defaultCategory}`, JSON.stringify([]))
+      // Save to localStorage (admin global selection)
+      if (isAdmin) {
+        localStorage.setItem('admin-selected-campaigns', JSON.stringify([]))
+      }
       
       return updated
     })
@@ -331,12 +497,14 @@ export function UnifiedCampaignsDashboard({
         selected: campaign.category === category 
       }))
       
-      // Save to localStorage immediately
-      const selectedIds = updated.filter(c => c.selected).map(c => c.id)
-      try {
-        localStorage.setItem(`campaign-selections-${defaultCategory}`, JSON.stringify(selectedIds))
-      } catch (error) {
-        console.warn('Failed to save to localStorage:', error)
+      // Save to localStorage immediately (admin global selection)
+      if (isAdmin) {
+        const selectedIds = updated.filter(c => c.selected).map(c => c.campaignId)
+        try {
+          localStorage.setItem('admin-selected-campaigns', JSON.stringify(selectedIds))
+        } catch (error) {
+          console.warn('Failed to save to localStorage:', error)
+        }
       }
       
       return updated
@@ -344,14 +512,21 @@ export function UnifiedCampaignsDashboard({
     setHasUnsavedChanges(true)
   }
 
-  // Calculate metrics from selected campaigns with validation
-  const selectedTotals = selectedCampaigns.reduce((acc, campaign) => {
+  // Calculate metrics from displayed campaigns with validation
+  // If admin has saved selections, use only those campaigns for totals
+  const campaignsForTotals = isAdmin && hasSavedSelections ? displayCampaigns : selectedCampaigns
+  const selectedTotals = campaignsForTotals.reduce((acc, campaign) => {
     const analytics = campaign.analytics
+    const overviewAnalytics = campaignAnalyticsOverview[campaign.campaignId] || {}
     if (analytics) {
       const leads = analytics.leads_count || 0
       const emailsSent = analytics.emails_sent_count || 0
-      const rawOpens = analytics.open_count || 0
-      const rawReplies = analytics.reply_count || 0
+      
+      // Use overview analytics when available (more accurate), fallback to regular analytics
+      const rawOpens = overviewAnalytics.open_count ?? analytics.open_count ?? 0
+      const rawReplies = overviewAnalytics.reply_count ?? analytics.reply_count ?? 0
+      const positiveReplies = overviewAnalytics.reply_count_unique ?? 0
+      const opensUnique = overviewAnalytics.open_count_unique ?? 0
       
       // Validate individual campaign metrics before aggregation
       const validatedOpens = Math.min(rawOpens, emailsSent)
@@ -361,8 +536,22 @@ export function UnifiedCampaignsDashboard({
       acc.emails_sent_count += emailsSent
       acc.reply_count += validatedReplies
       acc.open_count += validatedOpens
-      acc.total_opportunities += analytics.total_opportunities || 0
-      acc.total_opportunity_value += analytics.total_opportunity_value || 0
+      acc.open_count_unique = (acc.open_count_unique || 0) + opensUnique
+      acc.total_opportunities += overviewAnalytics.total_opportunities ?? analytics.total_opportunities ?? 0
+      acc.total_opportunity_value += overviewAnalytics.total_opportunity_value ?? analytics.total_opportunity_value ?? 0
+      acc.bounced_count += overviewAnalytics.bounced_count ?? analytics.bounced_count ?? 0
+      acc.unsubscribed_count += overviewAnalytics.unsubscribed_count ?? analytics.unsubscribed_count ?? 0
+      acc.link_click_count += overviewAnalytics.link_click_count ?? analytics.link_click_count ?? 0
+      acc.contacted_count += analytics.contacted_count ?? 0
+      
+      // Track positive and uninterested replies separately for totals
+      acc.positive_replies = (acc.positive_replies || 0) + positiveReplies
+      acc.uninterested_replies = (acc.uninterested_replies || 0) + Math.max(0, validatedReplies - positiveReplies)
+      
+      // Track CRM metrics
+      acc.total_interested = (acc.total_interested || 0) + (overviewAnalytics.total_interested ?? 0)
+      acc.total_meeting_booked = (acc.total_meeting_booked || 0) + (overviewAnalytics.total_meeting_booked ?? 0)
+      acc.total_closed = (acc.total_closed || 0) + (overviewAnalytics.total_closed ?? 0)
     }
     return acc
   }, {
@@ -370,9 +559,19 @@ export function UnifiedCampaignsDashboard({
     emails_sent_count: 0,
     reply_count: 0,
     open_count: 0,
+    open_count_unique: 0,
     total_opportunities: 0,
-    total_opportunity_value: 0
-  })
+    total_opportunity_value: 0,
+    bounced_count: 0,
+    unsubscribed_count: 0,
+    link_click_count: 0,
+    contacted_count: 0,
+    positive_replies: 0,
+    uninterested_replies: 0,
+    total_interested: 0,
+    total_meeting_booked: 0,
+    total_closed: 0
+  } as any)
 
   // Additional validation for metrics not handled in aggregation
   const validatedTotals = {
@@ -406,7 +605,9 @@ export function UnifiedCampaignsDashboard({
         <div>
           <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">{title}</h1>
           <p className="text-slate-600 dark:text-slate-300">
-            {selectedCampaigns.length} of {campaigns.length} campaigns selected
+            {isAdmin && hasSavedSelections 
+              ? `${displayCampaigns.length} campaigns displayed` 
+              : `${selectedCampaigns.length} of ${campaigns.length} campaigns selected`}
           </p>
         </div>
         
@@ -450,7 +651,7 @@ export function UnifiedCampaignsDashboard({
           </div>
           
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-80 overflow-y-auto">
-            {campaigns.map(campaign => (
+            {displayCampaigns.map(campaign => (
               <div key={campaign.id} className="flex items-center space-x-3 p-3 border border-slate-200 dark:border-slate-700 rounded bg-white dark:bg-slate-800">
                 <Checkbox
                   checked={campaign.selected}
@@ -496,10 +697,10 @@ export function UnifiedCampaignsDashboard({
       )}
 
       {/* Main Navigation Tabs */}
-      <div className="flex items-center gap-8 mb-8 border-b border-slate-200">
+      <div className="flex items-center gap-8 mb-8 border-b border-slate-200 dark:border-slate-700">
         <button
           onClick={() => setActiveTab('analytics')}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 ${
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 ${
             activeTab === 'analytics'
               ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
               : "border-transparent text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:border-slate-300 dark:hover:border-slate-600"
@@ -510,7 +711,7 @@ export function UnifiedCampaignsDashboard({
         </button>
         <button
           onClick={() => setActiveTab('inbox')}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 ${
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 ${
             activeTab === 'inbox'
               ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
               : "border-transparent text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:border-slate-300 dark:hover:border-slate-600"
@@ -521,7 +722,7 @@ export function UnifiedCampaignsDashboard({
         </button>
         <button
           onClick={() => setActiveTab('emails')}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 ${
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 ${
             activeTab === 'emails'
               ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
               : "border-transparent text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:border-slate-300 dark:hover:border-slate-600"
@@ -532,7 +733,7 @@ export function UnifiedCampaignsDashboard({
         </button>
         <button
           onClick={() => setActiveTab('mailboxes')}
-          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 ${
+          className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 ${
             activeTab === 'mailboxes'
               ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
               : "border-transparent text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:border-slate-300 dark:hover:border-slate-600"
@@ -544,10 +745,10 @@ export function UnifiedCampaignsDashboard({
         {isAdmin && (
           <button
             onClick={() => setActiveTab('settings')}
-            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 ${
+            className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 bg-transparent hover:bg-slate-100 dark:hover:bg-slate-800 ${
               activeTab === 'settings'
-                ? "border-indigo-500 text-indigo-600"
-                : "border-transparent text-slate-600 hover:text-slate-800 hover:border-slate-300"
+                ? "border-indigo-500 text-indigo-600 dark:text-indigo-400"
+                : "border-transparent text-slate-600 dark:text-slate-300 hover:text-slate-800 dark:hover:text-slate-100 hover:border-slate-300 dark:hover:border-slate-600"
             }`}
           >
             <UserCog className="w-4 h-4" />
@@ -632,9 +833,17 @@ export function UnifiedCampaignsDashboard({
 
             {/* Selected Campaigns Table */}
             <Card className="p-6 mt-8 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800">
-              <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">
-                Selected Campaigns ({selectedCampaigns.length})
-              </h3>
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+                  {isAdmin && hasSavedSelections ? 'Displayed Campaigns' : 'Selected Campaigns'} ({selectedCampaigns.length})
+                </h3>
+                {loadingAnalytics && (
+                  <div className="flex items-center gap-2 text-sm text-slate-500 dark:text-slate-400">
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                    Loading analytics...
+                  </div>
+                )}
+              </div>
               <div className="overflow-x-auto">
                 <table className="w-full">
                   <thead>
@@ -644,17 +853,38 @@ export function UnifiedCampaignsDashboard({
                       <th className="text-left py-3 px-2 font-medium text-slate-600 dark:text-slate-300 text-sm">Category</th>
                       <th className="text-left py-3 px-2 font-medium text-slate-600 dark:text-slate-300 text-sm">Sourced</th>
                       <th className="text-left py-3 px-2 font-medium text-slate-600 dark:text-slate-300 text-sm">Emails Sent</th>
-                      <th className="text-left py-3 px-2 font-medium text-slate-600 dark:text-slate-300 text-sm">Replies</th>
-                      <th className="text-left py-3 px-2 font-medium text-slate-600 dark:text-slate-300 text-sm">Opens</th>
+                      <th className="text-left py-3 px-2 font-medium text-slate-600 dark:text-slate-300 text-sm">Total Replies</th>
+                      <th className="text-left py-3 px-2 font-medium text-slate-600 dark:text-slate-300 text-sm">Total Opens</th>
+                      <th className="text-left py-3 px-2 font-medium text-slate-600 dark:text-slate-300 text-sm">Opportunities</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                     {selectedCampaigns.map((campaign) => {
                       const analytics = campaign.analytics
-                      const campaignReplyRate = analytics?.emails_sent_count > 0 
-                        ? ((analytics.reply_count / analytics.emails_sent_count) * 100) 
-                        : 0
+                      const overviewAnalytics = campaignAnalyticsOverview[campaign.campaignId] || {}
                       const isExpanded = expandedCampaigns.has(campaign.campaignId)
+                      const showMessages = expandedCampaigns.has(`${campaign.campaignId}-messages`)
+                      
+                      // Get metrics from overview analytics, fallback to regular analytics
+                      // Use overview analytics first (most accurate), then fallback to regular analytics
+                      const totalReplies = overviewAnalytics.reply_count ?? analytics?.reply_count ?? 0
+                      const positiveReplies = overviewAnalytics.reply_count_unique ?? 0
+                      // Calculate uninterested replies: Total Replies - Positive Replies
+                      // This represents replies that are not unique/positive (could be duplicates, negative, or uninterested)
+                      const uninterestedReplies = Math.max(0, totalReplies - positiveReplies)
+                      
+                      // Calculate reply rate based on positive replies
+                      const campaignReplyRate = analytics?.emails_sent_count > 0 && positiveReplies > 0
+                        ? ((positiveReplies / analytics.emails_sent_count) * 100) 
+                        : 0
+                      const opensUnique = overviewAnalytics.open_count_unique || 0
+                      const opensTotal = overviewAnalytics.open_count || analytics?.open_count || 0
+                      const bounces = overviewAnalytics.bounced_count || analytics?.bounced_count || 0
+                      const unsubscribes = overviewAnalytics.unsubscribed_count || analytics?.unsubscribed_count || 0
+                      const opportunities = overviewAnalytics.total_opportunities || analytics?.total_opportunities || 0
+                      const interested = overviewAnalytics.total_interested || 0
+                      const meetings = overviewAnalytics.total_meeting_booked || 0
+                      const closed = overviewAnalytics.total_closed || 0
                       
                       return (
                         <>
@@ -695,40 +925,55 @@ export function UnifiedCampaignsDashboard({
                             </td>
                             <td className="py-4 px-2">
                               <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                {analytics?.reply_count?.toLocaleString() || 0}
+                                {totalReplies.toLocaleString()}
                               </div>
-                              <div className="text-xs text-slate-500 dark:text-slate-400">({campaignReplyRate.toFixed(1)}%)</div>
                             </td>
                             <td className="py-4 px-2">
                               <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
-                                {analytics?.open_count?.toLocaleString() || 0}
+                                {opensTotal.toLocaleString()}
+                              </div>
+                            </td>
+                            <td className="py-4 px-2">
+                              <div className="text-sm font-medium text-slate-800 dark:text-slate-200">
+                                {opportunities.toLocaleString()}
                               </div>
                             </td>
                           </tr>
                           {isExpanded && (
                             <tr key={`${campaign.id}-details`}>
-                              <td colSpan={7} className="px-2 py-0">
+                              <td colSpan={8} className="px-2 py-0">
                                 <div className="bg-slate-50/50 dark:bg-slate-800/50 rounded-lg p-6 my-4">
-                                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                                    {/* Campaign Breakdown */}
-                                    <div>
-                                      <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Campaign Breakdown</h4>
-                                      <CampaignBreakdown 
-                                        campaignId={campaign.campaignId.replace(/^(roger|reachify|prusa)-/, '')} 
-                                        workspaceId={campaign.workspaceId} 
-                                        dateRange="30" 
-                                      />
+                                  {/* Campaign Breakdown - Full Width */}
+                                  <div className="mb-6">
+                                    <CampaignBreakdown 
+                                      campaignId={campaign.campaignId.replace(/^(roger|reachify|prusa)-/, '')} 
+                                      workspaceId={campaign.workspaceId} 
+                                      dateRange="30"
+                                      overviewAnalytics={overviewAnalytics}
+                                      detailedAnalytics={detailedCampaignAnalytics[campaign.campaignId]}
+                                    />
+                                  </div>
+                                  {/* Campaign Messages - Hidden by default, shown below breakdown */}
+                                  <div className="border-t border-slate-200 dark:border-slate-700 pt-6">
+                                    <div className="flex items-center justify-between mb-4">
+                                      <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Campaign Messages</h4>
+                                      <Button
+                                        onClick={() => toggleMessagesDisplay(campaign.campaignId)}
+                                        variant="outline"
+                                        size="sm"
+                                        className="text-sm"
+                                      >
+                                        {showMessages ? 'Hide Messaging' : 'Display Messaging'}
+                                      </Button>
                                     </div>
-                                    {/* Campaign Messages */}
-                                    <div>
-                                      <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Campaign Messages</h4>
+                                    {showMessages && (
                                       <div className="bg-white dark:bg-slate-900 rounded-lg p-4 border border-slate-200 dark:border-slate-700">
                                         <CampaignMessages 
                                           campaignId={campaign.campaignId.replace(/^(roger|reachify|prusa)-/, '')}
                                           workspaceId={campaign.workspaceId}
                                         />
                                       </div>
-                                    </div>
+                                    )}
                                   </div>
                                 </div>
                               </td>
