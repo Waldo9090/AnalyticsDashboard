@@ -203,7 +203,7 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
       <div className="overflow-x-auto">
         <div className="min-w-[1600px]">
           {/* Header Row */}
-          <div className="grid grid-cols-[200px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px] gap-2 text-xs font-medium text-muted-foreground border-b pb-3 mb-4">
+          <div className="grid grid-cols-[200px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px] gap-2 text-xs font-medium text-muted-foreground border-b pb-3 mb-4">
             <div>STEP</div>
             <div className="text-center">LEADS</div>
             <div className="text-center">CONTACTED</div>
@@ -216,6 +216,7 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
             <div className="text-center">BOUNCES</div>
             <div className="text-center">COMPLETED</div>
             <div className="text-center">OPPORTUNITIES</div>
+            <div className="text-center">UNINTERESTED</div>
           </div>
 
           {/* Campaign Rows */}
@@ -223,7 +224,7 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
             return (
             <div key={campaign.campaign_id} className="mb-4">
               {/* Main Campaign Row */}
-              <div className="grid grid-cols-[200px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px] gap-2 items-center py-2 hover:bg-gray-50 dark:hover:bg-slate-800/50 rounded text-sm">
+              <div className="grid grid-cols-[200px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px] gap-2 items-center py-2 hover:bg-gray-50 dark:hover:bg-slate-800/50 rounded text-sm">
                 <div>
                   <Button
                     variant="ghost"
@@ -324,11 +325,30 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
                 <div className="text-center">
                   <span className="text-slate-700 dark:text-slate-200">{campaign.total_opportunities?.toLocaleString() || detailedAnalytics?.total_opportunities?.toLocaleString() || '0'}</span>
                 </div>
+                {/* Uninterested */}
+                <div className="text-center">
+                  {(() => {
+                    const replies = campaign.reply_count || 0
+                    const opportunities = campaign.total_opportunities || detailedAnalytics?.total_opportunities || 0
+                    const uninterested = Math.max(0, replies - opportunities)
+                    const percentage = replies > 0 ? ((uninterested / replies) * 100).toFixed(1) : '0.0'
+                    return (
+                      <>
+                        <span className="text-slate-700 dark:text-slate-200">{uninterested.toLocaleString()}</span>
+                        {replies > 0 && (
+                          <div className="text-xs text-slate-500">
+                            ({percentage}%)
+                          </div>
+                        )}
+                      </>
+                    )
+                  })()}
+                </div>
               </div>
 
               {/* Expanded Step/Variant Rows */}
               {expandedCampaigns.has(campaign.campaign_id) && campaign.steps?.map((step, stepIndex) => (
-                <div key={`${campaign.campaign_id}-${stepIndex}`} className="grid grid-cols-[200px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px] gap-2 items-center py-1 hover:bg-gray-25 dark:hover:bg-slate-800/30 text-sm overflow-x-auto">
+                <div key={`${campaign.campaign_id}-${stepIndex}`} className="grid grid-cols-[200px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px] gap-2 items-center py-1 hover:bg-gray-25 dark:hover:bg-slate-800/30 text-sm overflow-x-auto">
                   <div className="pl-8 text-muted-foreground font-medium">
                     {step.variant}
                   </div>
@@ -380,6 +400,8 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
                   <div className="text-center text-slate-400">-</div>
                   {/* Opportunities - N/A for steps */}
                   <div className="text-center text-slate-400">-</div>
+                  {/* Uninterested - N/A for steps */}
+                  <div className="text-center text-slate-400">-</div>
                 </div>
               ))}
             </div>
@@ -402,6 +424,7 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
               let totalBounces = 0
               let totalCompleted = 0
               let totalOpportunities = 0
+              let totalUninterested = 0
 
               campaigns.forEach((campaign) => {
                 // Use the exact same logic as displayed in each row to ensure consistency
@@ -440,10 +463,15 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
                 
                 // Opportunities: campaign.total_opportunities || detailedAnalytics?.total_opportunities || '0'
                 totalOpportunities += Number(campaign.total_opportunities || detailedAnalytics?.total_opportunities || 0)
+                
+                // Uninterested: replies - opportunities
+                const replies = Number(campaign.reply_count || 0)
+                const opportunities = Number(campaign.total_opportunities || detailedAnalytics?.total_opportunities || 0)
+                totalUninterested += Math.max(0, replies - opportunities)
               })
               
               return (
-                <div className="grid grid-cols-[200px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px] gap-2 font-semibold text-lg overflow-x-auto">
+                <div className="grid grid-cols-[200px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px] gap-2 font-semibold text-lg overflow-x-auto">
                   <div>
                     <span className="text-lg font-bold text-slate-700 dark:text-slate-200">Totals</span>
                   </div>
@@ -523,6 +551,18 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
                       {totalOpportunities.toLocaleString()}
                     </span>
                     <div className="text-xs text-muted-foreground font-normal">Total Opportunities</div>
+                  </div>
+                  {/* Total Uninterested */}
+                  <div className="text-center">
+                    <span className="text-xl font-bold text-slate-700 dark:text-slate-200">
+                      {totalUninterested.toLocaleString()}
+                    </span>
+                    <div className="text-xs text-muted-foreground font-normal">Total Uninterested</div>
+                    {totalReplies > 0 && (
+                      <div className="text-xs text-slate-500 mt-1">
+                        ({((totalUninterested / totalReplies) * 100).toFixed(1)}%)
+                      </div>
+                    )}
                   </div>
                 </div>
               )
