@@ -7,6 +7,7 @@ import { CampaignMessages } from "@/components/campaign-messages"
 import { CampaignFilter } from "@/components/campaign-filter"
 import { InboxFilters } from "@/components/inbox-filters"
 import { InboxEmailList } from "@/components/inbox-email-list"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Card } from "@/components/ui/card"
 import { Mail, BarChart3, TrendingUp, Inbox } from "lucide-react"
 
@@ -26,8 +27,13 @@ export default function UnifiedCampaignsPage() {
         {/* Header */}
         <div className="flex flex-col lg:flex-row lg:items-center justify-between gap-6 mb-8">
           <div>
-            <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">Unified Campaign Dashboard</h1>
-            <p className="text-slate-600 dark:text-slate-300 mt-2">Combined analytics across Roger, Reachify, and PRUSA campaigns</p>
+            <div className="flex items-center gap-4">
+              <div>
+                <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">Unified Campaign Dashboard</h1>
+                <p className="text-slate-600 dark:text-slate-300 mt-2">Combined analytics across Roger, Reachify, and PRUSA campaigns</p>
+              </div>
+              <ThemeToggle />
+            </div>
           </div>
 
           {/* Filters */}

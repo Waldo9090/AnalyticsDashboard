@@ -4,6 +4,7 @@ import { Bell, User, LogOut } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { useAuth } from "@/contexts/AuthContext"
 import { useRouter } from "next/navigation"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { toast } from "sonner"
 
 export function DashboardHeader() {
@@ -47,6 +48,7 @@ export function DashboardHeader() {
           )}
 
           {/* Icons */}
+          <ThemeToggle />
           <Button variant="ghost" size="icon" className="rounded-xl hover:bg-slate-100 dark:hover:bg-slate-800 text-slate-600 dark:text-slate-400 hover:text-slate-900 dark:hover:text-slate-100">
             <Bell className="w-5 h-5" />
           </Button>

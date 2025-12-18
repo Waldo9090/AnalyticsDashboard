@@ -29,7 +29,8 @@ function getPreferences() {
     roger: [],
     reachify: [],
     prusa: [],
-    all: []
+    all: [],
+    admin: [] // Global admin selection
   }
 }
 

@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { TrendingUp, Mail, Users, BarChart3, Inbox, FileText, Server } from "lucide-react"
+import { TrendingUp, Mail, BarChart3, Inbox, FileText, Server } from "lucide-react"
 import { Card } from "@/components/ui/card"
 
 interface CampaignAnalytics {
@@ -183,21 +183,7 @@ export function UnifiedCampaignDashboard({ category = 'all', startDate, endDate 
           </div>
         </div>
 
-        <div className="grid grid-cols-2 md:grid-cols-5 gap-6">
-          {/* Sourced */}
-          <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm">
-            <div className="flex items-center gap-2 mb-4">
-              <Users className="w-5 h-5 text-emerald-600" />
-              <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Sourced</span>
-              <div className="text-xs bg-emerald-100 text-emerald-700 px-2 py-0.5 rounded-full">
-                +{Math.round((totals.leads_count / Math.max(totals.contacted_count, 1)) * 100)}%
-              </div>
-            </div>
-            <div className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-2">
-              {totals.leads_count.toLocaleString()}
-            </div>
-          </div>
-
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
           {/* Emails Sent */}
           <div className="bg-white/60 dark:bg-slate-900/60 backdrop-blur-sm border border-slate-200 dark:border-slate-700 rounded-xl p-6 shadow-sm">
             <div className="flex items-center gap-2 mb-4">

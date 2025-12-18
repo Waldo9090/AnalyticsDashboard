@@ -119,13 +119,123 @@ export async function GET(request: NextRequest) {
     console.log('Campaign data:', campaigns)
     console.log('Steps data:', steps)
 
-    // Map variant numbers to letters for display
+    // Map variant numbers to letters for display (A-Z)
     const variantLabels: { [key: string]: string } = {
       '0': 'A',
       '1': 'B', 
       '2': 'C',
       '3': 'D',
-      '4': 'E'
+      '4': 'E',
+      '5': 'F',
+      '6': 'G',
+      '7': 'H',
+      '8': 'I',
+      '9': 'J',
+      '10': 'K',
+      '11': 'L',
+      '12': 'M',
+      '13': 'N',
+      '14': 'O',
+      '15': 'P',
+      '16': 'Q',
+      '17': 'R',
+      '18': 'S',
+      '19': 'T',
+      '20': 'U',
+      '21': 'V',
+      '22': 'W',
+      '23': 'X',
+      '24': 'Y',
+      '25': 'Z'
+    }
+
+    // Fetch subsequences using the List campaign subsequence API endpoint
+    // Fetch subsequences for all campaigns in the response
+    let subsequences: any[] = []
+    const campaignIds = campaigns.map((c: any) => c.campaign_id).filter(Boolean)
+    
+    if (campaignIds.length > 0) {
+      try {
+        // Fetch subsequences for each campaign
+        const subsequencePromises = campaignIds.map(async (cid: string) => {
+          try {
+            const subsequencesParams = new URLSearchParams()
+            subsequencesParams.append('parent_campaign', cid)
+            subsequencesParams.append('limit', '100') // Get up to 100 subsequences per campaign
+            
+            const subsequencesResponse = await fetch(`${INSTANTLY_BASE_URL}/api/v2/subsequences?${subsequencesParams.toString()}`, {
+              headers: {
+                'Authorization': `Bearer ${apiKey}`,
+                'Content-Type': 'application/json',
+              },
+            })
+            
+            if (subsequencesResponse.ok) {
+              const subsequencesData = await subsequencesResponse.json()
+              const subsequenceItems = subsequencesData.items || []
+              console.log(`Found ${subsequenceItems.length} subsequences for campaign ${cid}`)
+              
+              // Fetch analytics for each subsequence
+              const analyticsPromises = subsequenceItems.map(async (subseq: any) => {
+                try {
+                  // Fetch subsequence analytics
+                  const analyticsParams = new URLSearchParams()
+                  analyticsParams.append('id', subseq.id)
+                  
+                  const analyticsResponse = await fetch(`${INSTANTLY_BASE_URL}/api/v2/campaigns/analytics?${analyticsParams.toString()}`, {
+                    headers: {
+                      'Authorization': `Bearer ${apiKey}`,
+                      'Content-Type': 'application/json',
+                    },
+                  })
+                  
+                  let analytics = null
+                  if (analyticsResponse.ok) {
+                    const analyticsData = await analyticsResponse.json()
+                    analytics = Array.isArray(analyticsData) && analyticsData.length > 0 ? analyticsData[0] : null
+                  }
+                  
+                  return {
+                    id: subseq.id,
+                    name: subseq.name,
+                    status: subseq.status,
+                    parent_campaign: subseq.parent_campaign,
+                    workspace: subseq.workspace,
+                    timestamp_created: subseq.timestamp_created,
+                    analytics: analytics
+                  }
+                } catch (error) {
+                  console.error(`Error fetching analytics for subsequence ${subseq.id}:`, error)
+                  // Return subsequence without analytics if analytics fetch fails
+                  return {
+                    id: subseq.id,
+                    name: subseq.name,
+                    status: subseq.status,
+                    parent_campaign: subseq.parent_campaign,
+                    workspace: subseq.workspace,
+                    timestamp_created: subseq.timestamp_created,
+                    analytics: null
+                  }
+                }
+              })
+              
+              return await Promise.all(analyticsPromises)
+            } else {
+              console.warn(`Failed to fetch subsequences for campaign ${cid}:`, subsequencesResponse.status)
+              return []
+            }
+          } catch (error) {
+            console.error(`Error fetching subsequences for campaign ${cid}:`, error)
+            return []
+          }
+        })
+        
+        const allSubsequenceResults = await Promise.all(subsequencePromises)
+        subsequences = allSubsequenceResults.flat().filter((s: any) => s !== null)
+        console.log(`Total subsequences fetched: ${subsequences.length}`)
+      } catch (error) {
+        console.error(`Error fetching subsequences:`, error)
+      }
     }
 
     // Attach steps data to each campaign
@@ -149,9 +259,15 @@ export async function GET(request: NextRequest) {
           return a.variant.localeCompare(b.variant)
         })
 
+      // Attach subsequences for this campaign
+      const campaignSubsequences = subsequences.filter((subseq: any) => 
+        subseq.parent_campaign === campaign.campaign_id
+      )
+
       return {
         ...campaign,
-        steps: campaignSteps
+        steps: campaignSteps,
+        subsequences: campaignSubsequences
       }
     })
     

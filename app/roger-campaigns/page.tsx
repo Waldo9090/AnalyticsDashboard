@@ -7,6 +7,7 @@ import { Sidebar } from "@/components/sidebar"
 import { DashboardHeader } from "@/components/dashboard-header"
 import { Button } from "@/components/ui/button"
 import { UnifiedCampaignsDashboard } from "@/components/unified-campaigns-dashboard"
+import { ThemeToggle } from "@/components/theme-toggle"
 import { Loader2, LogOut, AlertCircle } from "lucide-react"
 
 interface UserPermissions {
@@ -266,6 +267,7 @@ export default function RogerCampaignsPage() {
             </div>
             <div className="flex items-center gap-3 text-sm text-slate-600 dark:text-slate-300">
               <span>{new Date().toLocaleTimeString('en-US', { hour: '2-digit', minute: '2-digit' })}</span>
+              <ThemeToggle />
               <Button 
                 variant="ghost" 
                 size="sm" 

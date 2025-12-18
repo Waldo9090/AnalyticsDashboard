@@ -20,6 +20,27 @@ interface CampaignStep {
   completed?: number
 }
 
+interface SubsequenceData {
+  id: string
+  name: string
+  status: number
+  parent_campaign: string
+  analytics?: {
+    emails_sent_count?: number
+    open_count?: number
+    open_count_unique?: number
+    reply_count?: number
+    reply_count_unique?: number
+    link_click_count?: number
+    link_click_count_unique?: number
+    bounced_count?: number
+    unsubscribed_count?: number
+    completed_count?: number
+    total_opportunities?: number
+    total_opportunity_value?: number
+  }
+}
+
 interface CampaignBreakdownData {
   campaign_id: string
   campaign_name: string
@@ -42,6 +63,7 @@ interface CampaignBreakdownData {
   total_opportunities?: number
   total_opportunity_value?: number
   steps: CampaignStep[]
+  subsequences?: SubsequenceData[]
 }
 
 interface CampaignBreakdownProps {
@@ -67,14 +89,7 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
         const params = new URLSearchParams()
         if (workspaceId) params.append('workspace_id', workspaceId)
         if (campaignId) params.append('campaign_id', campaignId)
-        if (dateRange) {
-          const endDate = new Date()
-          const startDate = new Date()
-          startDate.setDate(endDate.getDate() - parseInt(dateRange))
-          
-          params.append('start_date', startDate.toISOString().split('T')[0])
-          params.append('end_date', endDate.toISOString().split('T')[0])
-        }
+        // No date range - fetch all-time analytics
         
         const url = `/api/instantly/campaigns/breakdown?${params.toString()}`
         console.log('Fetching campaign breakdown from:', url)
@@ -89,6 +104,12 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
         const data = await response.json()
         console.log('Campaign breakdown data received:', data)
         console.log('Sample campaign bounced_count:', data[0]?.bounced_count)
+        console.log('Campaigns with subsequences:', data.map((c: any) => ({
+          name: c.campaign_name,
+          id: c.campaign_id,
+          subsequencesCount: c.subsequences?.length || 0,
+          subsequences: c.subsequences
+        })))
         setCampaigns(data)
         
         // Auto-expand if only one campaign
@@ -106,7 +127,7 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
     }
 
     fetchBreakdown()
-  }, [workspaceId, campaignId, dateRange])
+  }, [workspaceId, campaignId])
 
   const toggleCampaign = (campaignId: string) => {
     const newExpanded = new Set(expandedCampaigns)
@@ -128,6 +149,34 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
       case 2: return 'bg-yellow-500' // Paused
       case 3: return 'bg-blue-500' // Completed
       default: return 'bg-gray-400'
+    }
+  }
+
+  const getSubsequenceStatusText = (status: number): string => {
+    switch (status) {
+      case 1: return 'Active' // Active - subsequence is currently running
+      case 2: return 'Paused' // Paused - manually paused
+      case 3: return 'Completed' // Completed - finished running
+      case 4: return 'Running' // Running Subsequences - has active child sequences
+      case 0: return 'Draft' // Draft - not yet active
+      case -99: return 'Suspended' // Account Suspended
+      case -1: return 'Unhealthy' // Accounts Unhealthy
+      case -2: return 'Bounce Protection' // Bounce Protection - paused due to high bounce rates
+      default: return 'Unknown'
+    }
+  }
+
+  const getSubsequenceStatusColor = (status: number): string => {
+    switch (status) {
+      case 1: return 'text-green-600 dark:text-green-400' // Active
+      case 4: return 'text-green-600 dark:text-green-400' // Running
+      case 2: return 'text-yellow-600 dark:text-yellow-400' // Paused
+      case 3: return 'text-blue-600 dark:text-blue-400' // Completed
+      case -99: return 'text-red-600 dark:text-red-400' // Suspended
+      case -1: return 'text-orange-600 dark:text-orange-400' // Unhealthy
+      case -2: return 'text-red-600 dark:text-red-400' // Bounce Protection
+      case 0: return 'text-slate-500 dark:text-slate-400' // Draft
+      default: return 'text-slate-500 dark:text-slate-400'
     }
   }
 
@@ -239,6 +288,11 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
                     )}
                     <div className={`w-2 h-2 rounded-full mr-2 ${getCampaignStatusColor(campaign.campaign_status)}`} />
                     <span className="font-bold">{campaign.campaign_name}</span>
+                    {campaign.subsequences && campaign.subsequences.length > 0 && (
+                      <span className="ml-2 text-xs px-2 py-0.5 rounded-full bg-purple-100 dark:bg-purple-900/30 text-purple-700 dark:text-purple-300 font-medium">
+                        {campaign.subsequences.length} {campaign.subsequences.length === 1 ? 'Subsequence' : 'Subsequences'}
+                      </span>
+                    )}
                   </Button>
                 </div>
                 {/* Leads */}
@@ -294,7 +348,7 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
                 </div>
                 {/* Bounces */}
                 <div className="text-center">
-                  <span className="text-red-600 dark:text-red-400">
+                  <span className="text-slate-700 dark:text-slate-200">
                     {(() => {
                       // Prioritize campaign.bounced_count from /api/v2/campaigns/analytics
                       const bounces = campaign.bounced_count ?? detailedAnalytics?.bounced_count ?? 0
@@ -404,6 +458,108 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
                   <div className="text-center text-slate-400">-</div>
                 </div>
               ))}
+
+              {/* Subsequence Rows */}
+              {expandedCampaigns.has(campaign.campaign_id) && campaign.subsequences && campaign.subsequences.length > 0 && campaign.subsequences.map((subseq, subseqIndex) => {
+                const analytics = subseq.analytics
+                const statusText = getSubsequenceStatusText(subseq.status)
+                const statusColor = getSubsequenceStatusColor(subseq.status)
+                
+                return (
+                  <div key={`${campaign.campaign_id}-subseq-${subseqIndex}`} className="grid grid-cols-[200px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px_100px] gap-2 items-center py-1 hover:bg-gray-25 dark:hover:bg-slate-800/30 text-sm overflow-x-auto border-l-2 border-purple-300 dark:border-purple-700">
+                    <div className="pl-8 text-muted-foreground font-medium flex items-center gap-2">
+                      <span>{subseq.name}</span>
+                      <span className={`text-xs font-semibold ${statusColor}`}>
+                        ({statusText})
+                      </span>
+                    </div>
+                    {/* Leads - N/A for subsequences */}
+                    <div className="text-center text-slate-400">-</div>
+                    {/* Contacted - N/A for subsequences */}
+                    <div className="text-center text-slate-400">-</div>
+                    {/* Sent */}
+                    <div className="text-center">
+                      {analytics?.emails_sent_count?.toLocaleString() || '0'}
+                    </div>
+                    {/* Opened */}
+                    <div className="text-center">
+                      <span className="text-slate-700 dark:text-slate-200">{analytics?.open_count?.toLocaleString() || '0'}</span>
+                      {analytics?.emails_sent_count && analytics.emails_sent_count > 0 && (() => {
+                        const openRate = ((analytics.open_count || 0) / analytics.emails_sent_count) * 100
+                        return (
+                          <div className="text-xs text-slate-500">
+                            ({openRate.toFixed(1)}%)
+                          </div>
+                        )
+                      })()}
+                    </div>
+                    {/* Unique Opens */}
+                    <div className="text-center">
+                      <span className="text-slate-700 dark:text-slate-200">{analytics?.open_count_unique?.toLocaleString() || '0'}</span>
+                      {analytics?.emails_sent_count && analytics.emails_sent_count > 0 && analytics?.open_count_unique && (() => {
+                        const uniqueOpenRate = (analytics.open_count_unique / analytics.emails_sent_count) * 100
+                        return (
+                          <div className="text-xs text-slate-500">
+                            ({uniqueOpenRate.toFixed(1)}%)
+                          </div>
+                        )
+                      })()}
+                    </div>
+                    {/* Replies */}
+                    <div className="text-center">
+                      <span className="text-slate-700 dark:text-slate-200">{analytics?.reply_count?.toLocaleString() || '0'}</span>
+                      {analytics?.emails_sent_count && analytics.emails_sent_count > 0 && (
+                        <div className="text-xs text-slate-500">
+                          {calculateReplyRate(analytics.reply_count || 0, analytics.emails_sent_count || 0)}%
+                        </div>
+                      )}
+                    </div>
+                    {/* Clicks */}
+                    <div className="text-center">
+                      <span className="text-slate-700 dark:text-slate-200">{analytics?.link_click_count?.toLocaleString() || '0'}</span>
+                      {analytics?.emails_sent_count && analytics.emails_sent_count > 0 && (() => {
+                        const clickRate = ((analytics.link_click_count || 0) / analytics.emails_sent_count) * 100
+                        return (
+                          <div className="text-xs text-slate-500">
+                            ({clickRate.toFixed(1)}%)
+                          </div>
+                        )
+                      })()}
+                    </div>
+                    {/* Unique Clicks */}
+                    <div className="text-center">
+                      <span className="text-slate-700 dark:text-slate-200">{analytics?.link_click_count_unique?.toLocaleString() || '0'}</span>
+                    </div>
+                    {/* Bounces - N/A for subsequences */}
+                    <div className="text-center text-slate-400">-</div>
+                    {/* Completed - N/A for subsequences */}
+                    <div className="text-center text-slate-400">-</div>
+                    {/* Opportunities */}
+                    <div className="text-center">
+                      <span className="text-slate-700 dark:text-slate-200">{analytics?.total_opportunities?.toLocaleString() || '0'}</span>
+                    </div>
+                    {/* Uninterested */}
+                    <div className="text-center">
+                      {(() => {
+                        const replies = analytics?.reply_count || 0
+                        const opportunities = analytics?.total_opportunities || 0
+                        const uninterested = Math.max(0, replies - opportunities)
+                        const percentage = replies > 0 ? ((uninterested / replies) * 100).toFixed(1) : '0.0'
+                        return (
+                          <>
+                            <span className="text-slate-700 dark:text-slate-200">{uninterested.toLocaleString()}</span>
+                            {replies > 0 && (
+                              <div className="text-xs text-slate-500">
+                                ({percentage}%)
+                              </div>
+                            )}
+                          </>
+                        )
+                      })()}
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )
           })}
@@ -533,7 +689,7 @@ export function CampaignBreakdown({ workspaceId, campaignId, dateRange, overview
                   </div>
                   {/* Total Bounces */}
                   <div className="text-center">
-                    <span className="text-xl font-bold text-red-600 dark:text-red-400">
+                    <span className="text-xl font-bold text-slate-700 dark:text-slate-200">
                       {totalBounces.toLocaleString()}
                     </span>
                     <div className="text-xs text-muted-foreground font-normal">Total Bounced</div>
