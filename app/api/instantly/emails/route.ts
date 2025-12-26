@@ -49,6 +49,22 @@ const ALL_CAMPAIGNS = [
     workspaceName: 'Wings Over Campaign',
     category: 'roger'
   },
+  {
+    id: 'roger-real-estate-official',
+    name: 'Roger Real Estate Official',
+    campaignId: '2d3a8573-8e95-4497-a72d-d70e7f4176f2',
+    workspaceId: '1',
+    workspaceName: 'Wings Over Campaign',
+    category: 'roger'
+  },
+  {
+    id: 'roger-campaign-7451e173',
+    name: 'Roger Campaign',
+    campaignId: '7451e173-09d4-4ccb-ad1e-8912e5a2c239',
+    workspaceId: '1',
+    workspaceName: 'Wings Over Campaign',
+    category: 'roger'
+  },
   // Reachify Campaigns
   {
     id: 'reachify-campaign',

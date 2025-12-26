@@ -109,7 +109,8 @@ export async function GET(request: NextRequest) {
             filteredData = data.filter((campaign: any) => 
               allowedPrusaCampaigns.includes(campaign.campaign_name) ||
               campaign.campaign_id === '43daa37e-1973-4e90-b8d5-5f218885e12d' || // PRUSA New York
-              campaign.campaign_id === '321ff703-2410-4a39-a24a-3a46c4c29e73' // New PRUSA Campaign
+              campaign.campaign_id === '321ff703-2410-4a39-a24a-3a46c4c29e73' || // New PRUSA Campaign
+              campaign.campaign_id === '25057551-6b40-45fe-97a9-2b5e3db3bafd' // PRUSA Florida Campaign
             )
           }
           

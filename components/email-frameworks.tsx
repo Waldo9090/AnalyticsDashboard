@@ -4,7 +4,17 @@ import { useEffect, useState } from "react"
 import { Card } from "@/components/ui/card"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Loader2, Search, Mail, RefreshCw, Filter, ChevronDown, FileText, Layers } from "lucide-react"
+import { Textarea } from "@/components/ui/textarea"
+import { 
+  Dialog, 
+  DialogContent, 
+  DialogDescription, 
+  DialogFooter, 
+  DialogHeader, 
+  DialogTitle 
+} from "@/components/ui/dialog"
+import { Loader2, Search, RefreshCw, Filter, ChevronDown, Layers, Edit, Save, X, ChevronRight, ChevronUp } from "lucide-react"
+import { toast } from "sonner"
 
 interface EmailTemplate {
   id: string
@@ -21,18 +31,56 @@ interface EmailTemplate {
   body: string
   step_name: string
   variant_name: string
+  delay?: number // Days to wait after previous step
+  step_type?: string // Type of step (usually 'email')
 }
 
 interface EmailFrameworksProps {
   category?: 'roger' | 'reachify' | 'prusa' | 'all'
 }
 
+interface SubsequenceData {
+  id: string
+  name: string
+  sequences: Array<{
+    steps: Array<{
+      type: string
+      delay?: number
+      variants: Array<{
+        subject: string
+        body: string
+        v_disabled?: boolean
+      }>
+    }>
+  }>
+  parent_campaign: string
+  workspace: string
+}
+
 export function EmailFrameworks({ category = 'all' }: EmailFrameworksProps) {
   const [emailTemplates, setEmailTemplates] = useState<EmailTemplate[]>([])
   const [loading, setLoading] = useState(true)
   const [searchTerm, setSearchTerm] = useState('')
-  const [selectedTemplate, setSelectedTemplate] = useState<EmailTemplate | null>(null)
   const [showFilters, setShowFilters] = useState(false)
+  const [expandedSteps, setExpandedSteps] = useState<Set<string>>(new Set())
+  const [editingSubsequence, setEditingSubsequence] = useState<{
+    id: string
+    campaignId: string
+    workspaceId: string
+    data: SubsequenceData | null
+  } | null>(null)
+  const [saving, setSaving] = useState(false)
+
+  // Toggle step expansion
+  const toggleStep = (stepKey: string) => {
+    const newExpanded = new Set(expandedSteps)
+    if (newExpanded.has(stepKey)) {
+      newExpanded.delete(stepKey)
+    } else {
+      newExpanded.add(stepKey)
+    }
+    setExpandedSteps(newExpanded)
+  }
 
   useEffect(() => {
     fetchEmailTemplates()
@@ -115,6 +163,110 @@ export function EmailFrameworks({ category = 'all' }: EmailFrameworksProps) {
     }
   }
 
+  // Get workspace ID from campaign category
+  const getWorkspaceId = (category: string): string => {
+    switch (category) {
+      case 'roger': return '1'
+      case 'reachify': return '4'
+      case 'prusa': return '2'
+      default: return '1'
+    }
+  }
+
+  // Fetch subsequence data for editing
+  const handleEditSubsequence = async (subsequenceId: string, campaignId: string, category: string, workspaceName?: string) => {
+    try {
+      const workspaceId = getWorkspaceId(category)
+      const response = await fetch(`/api/instantly/subsequences/${subsequenceId}?workspace_id=${workspaceId}`)
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to fetch subsequence data')
+      }
+      
+      const data = await response.json()
+      setEditingSubsequence({
+        id: subsequenceId,
+        campaignId,
+        workspaceId,
+        data: data
+      })
+    } catch (error) {
+      console.error('Error fetching subsequence:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to load subsequence data')
+    }
+  }
+
+  // Save subsequence changes
+  const handleSaveSubsequence = async () => {
+    if (!editingSubsequence || !editingSubsequence.data) return
+    
+    setSaving(true)
+    try {
+      const updateData: any = {
+        name: editingSubsequence.data.name,
+        sequences: editingSubsequence.data.sequences
+      }
+      
+      const response = await fetch(
+        `/api/instantly/subsequences/${editingSubsequence.id}?workspace_id=${editingSubsequence.workspaceId}`,
+        {
+          method: 'PATCH',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(updateData),
+        }
+      )
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}))
+        throw new Error(errorData.error || 'Failed to update subsequence')
+      }
+      
+      toast.success('Subsequence updated successfully')
+      setEditingSubsequence(null)
+      // Refresh templates to show updated data
+      fetchEmailTemplates()
+    } catch (error) {
+      console.error('Error saving subsequence:', error)
+      toast.error(error instanceof Error ? error.message : 'Failed to update subsequence')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  // Update step variant
+  const updateStepVariant = (stepIndex: number, variantIndex: number, field: 'subject' | 'body', value: string) => {
+    if (!editingSubsequence || !editingSubsequence.data) return
+    
+    const updatedData = { ...editingSubsequence.data }
+    if (updatedData.sequences[0]?.steps[stepIndex]?.variants[variantIndex]) {
+      updatedData.sequences[0].steps[stepIndex].variants[variantIndex][field] = value
+      setEditingSubsequence({ ...editingSubsequence, data: updatedData })
+    }
+  }
+
+  // Update step delay
+  const updateStepDelay = (stepIndex: number, delay: number) => {
+    if (!editingSubsequence || !editingSubsequence.data) return
+    
+    const updatedData = { ...editingSubsequence.data }
+    if (updatedData.sequences[0]?.steps[stepIndex]) {
+      updatedData.sequences[0].steps[stepIndex].delay = delay
+      setEditingSubsequence({ ...editingSubsequence, data: updatedData })
+    }
+  }
+
+  // Update subsequence name
+  const updateSubsequenceName = (name: string) => {
+    if (!editingSubsequence || !editingSubsequence.data) return
+    
+    const updatedData = { ...editingSubsequence.data }
+    updatedData.name = name
+    setEditingSubsequence({ ...editingSubsequence, data: updatedData })
+  }
+
   if (loading) {
     return (
       <div className="flex items-center justify-center py-12">
@@ -133,7 +285,7 @@ export function EmailFrameworks({ category = 'all' }: EmailFrameworksProps) {
         <div>
           <h2 className="text-2xl font-bold text-slate-800 dark:text-slate-100">Email Frameworks</h2>
           <p className="text-slate-600 dark:text-slate-300">
-            Viewing {filteredTemplates.length} of {emailTemplates.length} email templates
+            Viewing {filteredTemplates.length} email templates
             {category !== 'all' && ` from ${category} campaigns`}
           </p>
         </div>
@@ -167,11 +319,11 @@ export function EmailFrameworks({ category = 'all' }: EmailFrameworksProps) {
       {showFilters && (
         <Card className="p-4 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
           <div className="flex-1">
-            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Search Templates</label>
+            <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">Search Campaigns & Steps</label>
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-slate-400 dark:text-slate-500 w-4 h-4" />
               <Input
-                placeholder="Search by subject, campaign, step, body content..."
+                placeholder="Search by campaign name, subject, step, body content..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
                 className="pl-10"
@@ -181,161 +333,356 @@ export function EmailFrameworks({ category = 'all' }: EmailFrameworksProps) {
         </Card>
       )}
 
-      {/* Email Templates */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Templates List Panel */}
-        <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
-            <FileText className="w-5 h-5" />
-            Email Templates ({filteredTemplates.length})
-          </h3>
-          
-          <div className="space-y-3 max-h-96 overflow-y-auto">
-            {filteredTemplates.length === 0 ? (
-              <div className="text-center py-8 text-slate-500 dark:text-slate-400">
-                <FileText className="w-12 h-12 mx-auto mb-4 opacity-50" />
-                <p>No email templates found</p>
-                {searchTerm && <p className="text-sm">Try adjusting your search terms</p>}
-              </div>
-            ) : (
-              filteredTemplates.map((template) => (
-                <div
-                  key={template.id}
-                  onClick={() => setSelectedTemplate(template)}
-                  className={`p-3 border rounded-lg cursor-pointer transition-all hover:shadow-sm ${
-                    selectedTemplate?.id === template.id ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' : 'border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
-                  }`}
-                >
-                  <div className="flex items-start justify-between gap-2 mb-2">
-                    <div className="flex-1 min-w-0">
-                      <div className="font-medium text-sm text-slate-800 dark:text-slate-200 truncate">
-                        {template.subject || 'No Subject'}
-                      </div>
-                      <div className="text-xs text-slate-500 dark:text-slate-400 truncate">
-                        {template.step_name} • {template.variant_name}
-                      </div>
-                      <div className="text-xs text-slate-400 dark:text-slate-500 mt-1 line-clamp-2">
-                        {htmlToPlainText(template.body || '').substring(0, 100)}
-                        {htmlToPlainText(template.body || '').length > 100 ? '...' : ''}
-                      </div>
-                    </div>
-                    <div className="flex flex-col items-end gap-1">
-                      <span className={`text-xs px-2 py-1 rounded-full capitalize ${getCategoryColor(template.category)}`}>
-                        {template.category}
-                      </span>
-                      <div className="flex items-center gap-1">
-                        <Layers className="w-3 h-3 text-slate-400 dark:text-slate-500" />
-                        <span className="text-xs text-slate-500 dark:text-slate-400">
-                          Seq {template.sequenceIndex}.{template.stepIndex}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  <div className="flex items-center justify-between">
-                    <div className="text-xs text-slate-500 truncate">
-                      {template.campaignName}
-                    </div>
-                    <div className="text-xs text-slate-400">
-                      {template.subsequenceName}
-                    </div>
-                  </div>
-                </div>
-              ))
-            )}
-          </div>
-        </Card>
-
-        {/* Template Preview Panel */}
-        <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Email Template Preview</h3>
-          
-          {selectedTemplate ? (
-            <div className="space-y-4">
-              {/* Template Header */}
-              <div className="pb-4 border-b border-slate-200 dark:border-slate-700">
-                <div className="flex items-center justify-between mb-2">
-                  <span className={`text-xs px-2 py-1 rounded-full capitalize ${getCategoryColor(selectedTemplate.category)}`}>
-                    {selectedTemplate.category}
-                  </span>
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-800 dark:text-gray-300">
-                      Template
-                    </span>
-                    <div className="flex items-center gap-1">
-                      <Layers className="w-3 h-3 text-slate-400 dark:text-slate-500" />
-                      <span className="text-xs text-slate-500 dark:text-slate-400">
-                        Sequence {selectedTemplate.sequenceIndex} • Step {selectedTemplate.stepIndex} • Variant {selectedTemplate.variantIndex}
-                      </span>
-                    </div>
-                  </div>
-                </div>
-                
-                <h4 className="font-semibold text-slate-800 dark:text-slate-100 mb-2">
-                  {selectedTemplate.subject || 'No Subject'}
-                </h4>
-                
-                <div className="space-y-1 text-sm text-slate-600 dark:text-slate-300">
-                  <div><strong>Campaign:</strong> {selectedTemplate.campaignName}</div>
-                  <div><strong>Subsequence:</strong> {selectedTemplate.subsequenceName}</div>
-                  <div><strong>Step:</strong> {selectedTemplate.step_name}</div>
-                  <div><strong>Variant:</strong> {selectedTemplate.variant_name}</div>
-                  <div><strong>Workspace:</strong> {selectedTemplate.workspaceName}</div>
-                </div>
-              </div>
-
-              {/* Template Body */}
-              <div className="max-h-80 overflow-y-auto">
-                <h5 className="font-medium text-slate-700 dark:text-slate-300 mb-3">Email Body:</h5>
-                <div className="bg-slate-50 dark:bg-slate-800/50 p-4 rounded-lg">
-                  <div 
-                    className="text-slate-700 dark:text-slate-200 text-sm leading-relaxed prose prose-sm max-w-none [&_div]:mb-2 [&_br]:block [&_br]:my-1 [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_p]:mb-3"
-                    dangerouslySetInnerHTML={{ 
-                      __html: selectedTemplate.body || 'No content available' 
-                    }}
-                    style={{
-                      wordBreak: 'break-word'
-                    }}
-                  />
-                </div>
-              </div>
-            </div>
-          ) : (
-            <div className="text-center py-12 text-slate-500 dark:text-slate-400">
-              <FileText className="w-16 h-16 mx-auto mb-4 opacity-30" />
-              <p className="text-lg font-medium mb-2">Select an Email Template</p>
-              <p>Choose a template from the list to preview its content and structure</p>
-            </div>
-          )}
-        </Card>
-      </div>
-
-      {/* Templates Summary */}
+      {/* Campaign Steps Section */}
       {filteredTemplates.length > 0 && (
         <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
-          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4">Templates Summary</h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="text-center">
-              <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-                {filteredTemplates.length}
-              </div>
-              <div className="text-sm text-slate-600 dark:text-slate-300">Email Templates</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-                {new Set(filteredTemplates.map(t => t.campaignId)).size}
-              </div>
-              <div className="text-sm text-slate-600 dark:text-slate-300">Campaigns</div>
-            </div>
-            <div className="text-center">
-              <div className="text-2xl font-bold text-slate-800 dark:text-slate-100">
-                {new Set(filteredTemplates.map(t => t.subsequenceId)).size}
-              </div>
-              <div className="text-sm text-slate-600 dark:text-slate-300">Subsequences</div>
-            </div>
+          <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100 mb-4 flex items-center gap-2">
+            <Layers className="w-5 h-5" />
+            Campaign Steps & Sequences
+          </h3>
+          <p className="text-sm text-slate-600 dark:text-slate-300 mb-6">
+            View all email steps in sequence order for each campaign, including follow-up emails and their delays
+          </p>
+          
+          <div className="space-y-8">
+            {(() => {
+              // Group templates by campaign and subsequence
+              const groupedByCampaign = filteredTemplates.reduce((acc, template) => {
+                const key = `${template.campaignId}-${template.subsequenceId}`
+                if (!acc[key]) {
+                  acc[key] = {
+                    campaignName: template.campaignName,
+                    campaignId: template.campaignId,
+                    workspaceName: template.workspaceName,
+                    category: template.category,
+                    subsequenceName: template.subsequenceName,
+                    subsequenceId: template.subsequenceId,
+                    steps: [] as EmailTemplate[]
+                  }
+                }
+                acc[key].steps.push(template)
+                return acc
+              }, {} as Record<string, {
+                campaignName: string
+                campaignId: string
+                workspaceName: string
+                category: string
+                subsequenceName: string
+                subsequenceId: string
+                steps: EmailTemplate[]
+              }>)
+
+              return Object.values(groupedByCampaign).map((group) => {
+                // Sort steps by stepIndex
+                const sortedSteps = [...group.steps].sort((a, b) => {
+                  if (a.stepIndex !== b.stepIndex) {
+                    return a.stepIndex - b.stepIndex
+                  }
+                  return a.variantIndex - b.variantIndex
+                })
+
+                return (
+                  <div key={`${group.campaignId}-${group.subsequenceId}`} className="border border-slate-200 dark:border-slate-700 rounded-lg p-6">
+                    {/* Campaign Header */}
+                    <div className="mb-6 pb-4 border-b border-slate-200 dark:border-slate-700">
+                      <div className="flex items-start justify-between">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-3 mb-2">
+                            <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+                              {group.campaignName}
+                            </h4>
+                            <span className={`text-xs px-2 py-1 rounded-full capitalize ${getCategoryColor(group.category)}`}>
+                              {group.category}
+                            </span>
+                          </div>
+                          <div className="text-sm text-slate-600 dark:text-slate-300">
+                            <div><strong>Sequence:</strong> {group.subsequenceName}</div>
+                            <div><strong>Workspace:</strong> {group.workspaceName}</div>
+                            <div><strong>Total Steps:</strong> {new Set(sortedSteps.map(s => s.stepIndex)).size}</div>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Steps List */}
+                    <div className="space-y-4">
+                      {(() => {
+                        // Get unique steps (by stepIndex) and show each step with all its variants
+                        const uniqueSteps = new Map<number, EmailTemplate[]>()
+                        
+                        sortedSteps.forEach(template => {
+                          if (!uniqueSteps.has(template.stepIndex)) {
+                            uniqueSteps.set(template.stepIndex, [])
+                          }
+                          uniqueSteps.get(template.stepIndex)!.push(template)
+                        })
+                        
+                        return Array.from(uniqueSteps.entries())
+                          .sort(([a], [b]) => a - b)
+                          .map(([stepIndex, stepTemplates]) => {
+                            // Sort variants within step
+                            const sortedVariants = stepTemplates.sort((a, b) => a.variantIndex - b.variantIndex)
+                            const firstVariant = sortedVariants[0]
+                            
+                            // Get delay - it's the delay for THIS step (days to wait before sending NEXT email)
+                            const delay = firstVariant.delay !== undefined ? firstVariant.delay : (stepIndex === 1 ? 0 : undefined)
+
+                            const stepKey = `${group.campaignId}-${group.subsequenceId}-step-${stepIndex}`
+                            const isExpanded = expandedSteps.has(stepKey)
+
+                            return (
+                              <div key={`step-${stepIndex}`} className="border-l-4 border-blue-500 dark:border-blue-400 pl-4 py-3 bg-slate-50 dark:bg-slate-800/30 rounded-r-lg">
+                                <div className="flex items-start justify-between">
+                                  <div className="flex-1">
+                                    <div className="flex items-center gap-3 mb-2">
+                                      <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 dark:bg-blue-600 text-white text-sm font-semibold">
+                                        {stepIndex}
+                                      </div>
+                                      <div className="flex-1">
+                                        <h5 className="font-semibold text-slate-800 dark:text-slate-100">
+                                          {firstVariant.step_name}
+                                        </h5>
+                                        <div className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                                          Type: {firstVariant.step_type || 'email'} • Variants: {sortedVariants.length}
+                                        </div>
+                                      </div>
+                                    </div>
+                                    
+                                    {delay !== undefined && (
+                                      <div className="ml-11 mb-2">
+                                        <span className="inline-flex items-center gap-1 text-xs px-2 py-1 rounded-full bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-300">
+                                          <span>⏱️</span>
+                                          <span>Delay: {delay === 0 ? 'Immediate' : `${delay} day${delay !== 1 ? 's' : ''} after previous step`}</span>
+                                        </span>
+                                      </div>
+                                    )}
+
+                                    {/* Show subject preview when collapsed */}
+                                    {!isExpanded && sortedVariants.length > 0 && (
+                                      <div className="ml-11 mt-2">
+                                        <div className="text-sm text-slate-600 dark:text-slate-400">
+                                          <strong>Subject:</strong> {sortedVariants[0].subject || 'No Subject'}
+                                        </div>
+                                      </div>
+                                    )}
+
+                                    {/* Expanded content */}
+                                    {isExpanded && (
+                                      <div className="ml-11 space-y-4 mt-4">
+                                        {/* Show all variants for this step */}
+                                        {sortedVariants.map((variant, variantIdx) => (
+                                          <div key={variant.id} className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-white dark:bg-slate-900">
+                                            {sortedVariants.length > 1 && (
+                                              <div className="mb-3 pb-2 border-b border-slate-200 dark:border-slate-700">
+                                                <span className="text-xs font-medium text-slate-600 dark:text-slate-400">
+                                                  Variant {variant.variantIndex}: {variant.variant_name}
+                                                </span>
+                                              </div>
+                                            )}
+                                            
+                                            <div className="space-y-2">
+                                              <div>
+                                                <div className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                                  Subject:
+                                                </div>
+                                                <div className="text-sm text-slate-800 dark:text-slate-200 bg-slate-50 dark:bg-slate-800 p-2 rounded border border-slate-200 dark:border-slate-700">
+                                                  {variant.subject || 'No Subject'}
+                                                </div>
+                                              </div>
+
+                                              <div>
+                                                <div className="text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                                  Email Body:
+                                                </div>
+                                                <div className="bg-slate-50 dark:bg-slate-800 p-4 rounded border border-slate-200 dark:border-slate-700 max-h-64 overflow-y-auto">
+                                                  <div 
+                                                    className="text-sm text-slate-700 dark:text-slate-200 leading-relaxed prose prose-sm max-w-none [&_div]:mb-2 [&_br]:block [&_br]:my-1 [&_a]:text-blue-600 dark:[&_a]:text-blue-400 [&_a]:underline [&_p]:mb-3 whitespace-pre-wrap"
+                                                    dangerouslySetInnerHTML={{ 
+                                                      __html: variant.body || 'No content available' 
+                                                    }}
+                                                    style={{
+                                                      wordBreak: 'break-word'
+                                                    }}
+                                                  />
+                                                </div>
+                                              </div>
+                                            </div>
+                                          </div>
+                                        ))}
+                                      </div>
+                                    )}
+                                  </div>
+                                  
+                                  {/* Expand/Collapse Button */}
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    onClick={() => toggleStep(stepKey)}
+                                    className="ml-4 flex-shrink-0"
+                                  >
+                                    {isExpanded ? (
+                                      <>
+                                        <ChevronUp className="w-4 h-4 mr-1" />
+                                        Hide
+                                      </>
+                                    ) : (
+                                      <>
+                                        <ChevronRight className="w-4 h-4 mr-1" />
+                                        Show
+                                      </>
+                                    )}
+                                  </Button>
+                                </div>
+                              </div>
+                            )
+                          })
+                      })()}
+                    </div>
+                  </div>
+                )
+              })
+            })()}
           </div>
         </Card>
       )}
+
+      {/* Edit Subsequence Dialog */}
+      <Dialog open={editingSubsequence !== null} onOpenChange={(open) => !open && setEditingSubsequence(null)}>
+        <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          {editingSubsequence && editingSubsequence.data && (
+            <>
+              <DialogHeader>
+                <DialogTitle>Edit Subsequence</DialogTitle>
+                <DialogDescription>
+                  Update the subsequence name, steps, and email content. Changes will be saved to Instantly.ai.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 py-4">
+                {/* Subsequence Name */}
+                <div>
+                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-2">
+                    Subsequence Name
+                  </label>
+                  <Input
+                    value={editingSubsequence.data.name}
+                    onChange={(e) => updateSubsequenceName(e.target.value)}
+                    placeholder="Enter subsequence name"
+                    className="w-full"
+                  />
+                </div>
+
+                {/* Steps */}
+                {editingSubsequence.data.sequences[0]?.steps && (
+                  <div className="space-y-6">
+                    <h4 className="text-lg font-semibold text-slate-800 dark:text-slate-100">
+                      Email Steps
+                    </h4>
+                    {editingSubsequence.data.sequences[0].steps.map((step, stepIndex) => (
+                      <Card key={stepIndex} className="p-4 border-slate-200 dark:border-slate-700">
+                        <div className="flex items-center justify-between mb-4">
+                          <div className="flex items-center gap-3">
+                            <div className="flex items-center justify-center w-8 h-8 rounded-full bg-blue-500 dark:bg-blue-600 text-white text-sm font-semibold">
+                              {stepIndex + 1}
+                            </div>
+                            <h5 className="font-semibold text-slate-800 dark:text-slate-100">
+                              Step {stepIndex + 1}
+                            </h5>
+                          </div>
+                          <div className="flex items-center gap-2">
+                            <label className="text-sm text-slate-600 dark:text-slate-400">
+                              Delay (days):
+                            </label>
+                            <Input
+                              type="number"
+                              min="0"
+                              value={step.delay ?? 0}
+                              onChange={(e) => updateStepDelay(stepIndex, parseInt(e.target.value) || 0)}
+                              className="w-20"
+                            />
+                          </div>
+                        </div>
+
+                        {/* Variants */}
+                        <div className="space-y-4">
+                          {step.variants.map((variant, variantIndex) => (
+                            <div key={variantIndex} className="border border-slate-200 dark:border-slate-700 rounded-lg p-4 bg-slate-50 dark:bg-slate-800/30">
+                              <div className="flex items-center justify-between mb-3">
+                                <span className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                                  Variant {variantIndex + 1}
+                                </span>
+                                {variant.v_disabled && (
+                                  <span className="text-xs px-2 py-1 rounded-full bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-300">
+                                    Disabled
+                                  </span>
+                                )}
+                              </div>
+                              
+                              <div className="space-y-3">
+                                <div>
+                                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    Subject
+                                  </label>
+                                  <Input
+                                    value={variant.subject}
+                                    onChange={(e) => updateStepVariant(stepIndex, variantIndex, 'subject', e.target.value)}
+                                    placeholder="Email subject"
+                                    className="w-full"
+                                  />
+                                </div>
+                                
+                                <div>
+                                  <label className="block text-sm font-medium text-slate-700 dark:text-slate-300 mb-1">
+                                    Body
+                                  </label>
+                                  <Textarea
+                                    value={variant.body}
+                                    onChange={(e) => updateStepVariant(stepIndex, variantIndex, 'body', e.target.value)}
+                                    placeholder="Email body content"
+                                    className="w-full min-h-32 font-mono text-sm"
+                                  />
+                                </div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      </Card>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter>
+                <Button
+                  variant="outline"
+                  onClick={() => setEditingSubsequence(null)}
+                  disabled={saving}
+                >
+                  <X className="w-4 h-4 mr-2" />
+                  Cancel
+                </Button>
+                <Button
+                  onClick={handleSaveSubsequence}
+                  disabled={saving}
+                  className="bg-blue-600 hover:bg-blue-700 text-white"
+                >
+                  {saving ? (
+                    <>
+                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="w-4 h-4 mr-2" />
+                      Save Changes
+                    </>
+                  )}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

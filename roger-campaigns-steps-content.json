@@ -1,0 +1,135 @@
+[
+  {
+    "campaign": "Roger New Real Estate Leads",
+    "campaignId": "d4e3c5ea-2bd6-46c2-9a32-2586cd7d1856",
+    "workspace": "Wings Over Campaign",
+    "steps": [
+      {
+        "stepNumber": 1,
+        "stepName": "Step 1",
+        "type": "email",
+        "delay": 1,
+        "variants": [
+          {
+            "variantNumber": 1,
+            "variantName": "Variant 1",
+            "disabled": false,
+            "subject": "Free Wings Over on Us!",
+            "body": "<div>Hi {{firstName}},</div><div><br /></div><div>I’m with Wings Over and would love to give you some free food and tell you a little bit more about the brand. If you’re interested in a free lunch for you and your teamcrew, just reply back to this message or email catering@winsover.com and we’ll coordinate something with you.<br /><br /></div><div>Thanks</div>",
+            "bodyText": "Hi {{firstName}},\n\nI’m with Wings Over and would love to give you some free food and tell you a little bit more about the brand. If you’re interested in a free lunch for you and your teamcrew, just reply back to this message or email catering@winsover.com and we’ll coordinate something with you.\n\nThanks"
+          },
+          {
+            "variantNumber": 2,
+            "variantName": "Variant 2",
+            "disabled": true,
+            "subject": "Quick question - want some free food?",
+            "body": "<div>Hi {{firstName}},<br /><br /></div><div>I’m reaching out because we’re offering a few local companies free food from Wings Over this month. No catch, no pressure - just a chance for teams to try us out and taste our delicious food.<br /><br /></div><div>If you’re interested - just reply “yes” and I’ll handle the rest.<br /><br /></div><div>- {{accountSignature}} </div>",
+            "bodyText": "Hi {{firstName}},\n\nI’m reaching out because we’re offering a few local companies free food from Wings Over this month. No catch, no pressure - just a chance for teams to try us out and taste our delicious food.\n\nIf you’re interested - just reply “yes” and I’ll handle the rest.\n\n- {{accountSignature}}"
+          },
+          {
+            "variantNumber": 3,
+            "variantName": "Variant 3",
+            "disabled": true,
+            "subject": "Can I send your team some free food?",
+            "body": "<div>Hi {{firstName}} ,<br /><br /></div><div>I’m with Wings Over, and we’re sending free food to a few local offices this month. It can be a personal treat for you or a special gift for your whole team - whatever works best for you.<br /><br /></div><div>If you’d like me to organize it, just reply “yes” and I’ll take care of everything.<br /><br /></div><div>- {{accountSignature}} </div>",
+            "bodyText": "Hi {{firstName}} ,\n\nI’m with Wings Over, and we’re sending free food to a few local offices this month. It can be a personal treat for you or a special gift for your whole team - whatever works best for you.\n\nIf you’d like me to organize it, just reply “yes” and I’ll take care of everything.\n\n- {{accountSignature}}"
+          },
+          {
+            "variantNumber": 4,
+            "variantName": "Variant 4",
+            "disabled": true,
+            "subject": "Free Wings Over for you or your team",
+            "body": "<div>Hi {{firstName}},<br /><br /></div><div>We’re providing free food from Wings Over to a small number of local companies this month. It’s completely flexible - lunch for yourself or your whole team, whichever works best.<br /><br /></div><div>If you’d like to join in, just reply “yes” and I’ll get it scheduled.<br /><br /></div><div>- {{accountSignature}} </div>",
+            "bodyText": "Hi {{firstName}},\n\nWe’re providing free food from Wings Over to a small number of local companies this month. It’s completely flexible - lunch for yourself or your whole team, whichever works best.\n\nIf you’d like to join in, just reply “yes” and I’ll get it scheduled.\n\n- {{accountSignature}}"
+          },
+          {
+            "variantNumber": 5,
+            "variantName": "Variant 5",
+            "disabled": true,
+            "subject": "Would your team like free Wings Over?",
+            "body": "<div>Hi {{firstName}},<br />This month, we’re sending free Wings Over food to a few local offices - just a way for people to try us out. No commitments, no strings, just good food.<br /><br /></div><div>If you’re interested, reply “yes” and I’ll handle all the details.<br /><br /></div><div>- {{accountSignature}} </div>",
+            "bodyText": "Hi {{firstName}},\nThis month, we’re sending free Wings Over food to a few local offices - just a way for people to try us out. No commitments, no strings, just good food.\n\nIf you’re interested, reply “yes” and I’ll handle all the details.\n\n- {{accountSignature}}"
+          },
+          {
+            "variantNumber": 6,
+            "variantName": "Variant 6",
+            "disabled": false,
+            "subject": "October Real-estate Conference on Us",
+            "body": "<div>Hi {{firstName}},<br /><br /></div><div>I hope you’re well. I’m with Wings Over and we serve the best wings in town.<br /><br />We’re supporting real-estate offices this week and we’d love to feed you and your team for a night completely on us. We’ve already catered for offices across the US.<br /><br />Interested? Just respond with \"yes\" and your availability. </div>",
+            "bodyText": "Hi {{firstName}},\n\nI hope you’re well. I’m with Wings Over and we serve the best wings in town.\n\nWe’re supporting real-estate offices this week and we’d love to feed you and your team for a night completely on us. We’ve already catered for offices across the US.\n\nInterested? Just respond with \"yes\" and your availability."
+          },
+          {
+            "variantNumber": 7,
+            "variantName": "Variant 7",
+            "disabled": true,
+            "subject": "Hi {{firstName}}",
+            "body": "<div>Hi {{firstName}},<br /><br /></div><div>I’m reaching out because we’re offering a few local companies free food from Wings Over this month. No catch, no pressure - just a chance for teams to try us out and taste our delicious food.<br /><br /></div><div>If you’re interested - just reply “yes” and I’ll handle the rest.<br /><br /></div><div>- {{accountSignature}} </div>",
+            "bodyText": "Hi {{firstName}},\n\nI’m reaching out because we’re offering a few local companies free food from Wings Over this month. No catch, no pressure - just a chance for teams to try us out and taste our delicious food.\n\nIf you’re interested - just reply “yes” and I’ll handle the rest.\n\n- {{accountSignature}}"
+          },
+          {
+            "variantNumber": 8,
+            "variantName": "Variant 8",
+            "disabled": true,
+            "subject": "Hi {{firstName}}",
+            "body": "<div>Hi {{firstName}}!<br /><br />I hope you're well. You might have seen Wings Over on social media recently - we’re an award-winning chicken brand known for big portions, fresh (never frozen) chicken, and seriously delicious flavors.<br /><br />I’m reaching out because we’ve been teaming up with local companies to feed their teams, and we’d love to do the same for you! There’s no cost at all - we just want you to try our food so we’re top-of-mind next time you, or your team, is hungry.<br /><br />Founded in 1999, Wings Over was voted Best Wings this year in Chapel Hill, Happy Valley, Columbus, Athens, and Worcester and more - and we’d love for you to see why.<br /><br /></div><div>If you’d like to discuss, please (a) reply with your phone number and availability for a call or (b) tell us good days and times and we'll arrange a video meeting.  Thank you.<br /><br /></div><div>Sincerely,<br /><br /></div><div>{{accountSignature}} </div>",
+            "bodyText": "Hi {{firstName}}!\n\nI hope you're well. You might have seen Wings Over on social media recently - we’re an award-winning chicken brand known for big portions, fresh (never frozen) chicken, and seriously delicious flavors.\n\nI’m reaching out because we’ve been teaming up with local companies to feed their teams, and we’d love to do the same for you! There’s no cost at all - we just want you to try our food so we’re top-of-mind next time you, or your team, is hungry.\n\nFounded in 1999, Wings Over was voted Best Wings this year in Chapel Hill, Happy Valley, Columbus, Athens, and Worcester and more - and we’d love for you to see why.\n\nIf you’d like to discuss, please (a) reply with your phone number and availability for a call or (b) tell us good days and times and we'll arrange a video meeting.  Thank you.\n\nSincerely,\n\n{{accountSignature}}"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "campaign": "Roger Real Estate Offices",
+    "campaignId": "6ffe8ad9-9695-4f4d-973f-0c20425268eb",
+    "workspace": "Wings Over Campaign",
+    "steps": [
+      {
+        "stepNumber": 1,
+        "stepName": "Step 1",
+        "type": "email",
+        "delay": 1,
+        "variants": [
+          {
+            "variantNumber": 1,
+            "variantName": "Variant 1",
+            "disabled": false,
+            "subject": "October Real-estate Conference on Us",
+            "body": "<div>Hi {{firstName}},<br /><br /></div><div>I hope you’re well. I’m with Wings Over and we serve the best wings in town.<br /><br />We’re supporting real-estate offices this week and we’d love to feed you and your team for a night completely on us. We’ve already catered for offices across the US.<br /><br />Interested? Just respond with \"yes\" and your availability. </div>",
+            "bodyText": "Hi {{firstName}},\n\nI hope you’re well. I’m with Wings Over and we serve the best wings in town.\n\nWe’re supporting real-estate offices this week and we’d love to feed you and your team for a night completely on us. We’ve already catered for offices across the US.\n\nInterested? Just respond with \"yes\" and your availability."
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "campaign": "Roger Hospitals Chapel Hill",
+    "campaignId": "a59eefd0-0c1a-478d-bb2f-6216798fa757",
+    "workspace": "Wings Over Campaign",
+    "steps": [
+      {
+        "stepNumber": 1,
+        "stepName": "Step 1",
+        "type": "email",
+        "delay": 1,
+        "variants": [
+          {
+            "variantNumber": 1,
+            "variantName": "Variant 1",
+            "disabled": false,
+            "subject": "Hi {{firstName}}",
+            "body": "<div>Hi {{firstName}},</div><div><br /></div><div>I hope you’re well. I’m with Wings Over, we serve the best chicken wings in Chapel Hill. We even won Best Wings in Chapel Hill in 2025.<br /><br />We’re supporting hospitals this week and we’d love to feed you and your team for a night completely on us. We’ve already catered for hospitals and hosted team lunches across Chapel Hill.<br /><br />If your team would be interested in discussing a free catering dinner, please reply “Yes” and either (a) share your phone number and availability for a call, or (b) suggest good days and times and we’ll arrange a video meeting. Thank you.</div><div><br /></div><div><br /></div><div>Sincerely,</div><div>{{accountSignature}} </div>",
+            "bodyText": "Hi {{firstName}},\n\nI hope you’re well. I’m with Wings Over, we serve the best chicken wings in Chapel Hill. We even won Best Wings in Chapel Hill in 2025.\n\nWe’re supporting hospitals this week and we’d love to feed you and your team for a night completely on us. We’ve already catered for hospitals and hosted team lunches across Chapel Hill.\n\nIf your team would be interested in discussing a free catering dinner, please reply “Yes” and either (a) share your phone number and availability for a call, or (b) suggest good days and times and we’ll arrange a video meeting. Thank you.\n\nSincerely,\n{{accountSignature}}"
+          },
+          {
+            "variantNumber": 2,
+            "variantName": "Variant 2",
+            "disabled": false,
+            "subject": "{{firstName}} is this helpful?",
+            "body": "<div>Hi {{firstName}},<br /><br /></div><div>I hope you’re well. I’m with Wings Over, we serve the best chicken wings in Chapel Hill. We even won Best Wings in Chapel Hill in 2025.<br /><br />We’re supporting hospitals this week and we’d love to feed you and your team for a night completely on us. We’ve already catered for hospitals and hosted team lunches across Chapel Hill.<br /><br />If your team would be interested in discussing a free catering dinner, please reply “Yes” and either (a) share your phone number and availability for a call, or (b) suggest good days and times and we’ll arrange a video meeting. Thank you.<br /><br /></div><div>Sincerely,</div><div>{{accountSignature}} </div>",
+            "bodyText": "Hi {{firstName}},\n\nI hope you’re well. I’m with Wings Over, we serve the best chicken wings in Chapel Hill. We even won Best Wings in Chapel Hill in 2025.\n\nWe’re supporting hospitals this week and we’d love to feed you and your team for a night completely on us. We’ve already catered for hospitals and hosted team lunches across Chapel Hill.\n\nIf your team would be interested in discussing a free catering dinner, please reply “Yes” and either (a) share your phone number and availability for a call, or (b) suggest good days and times and we’ll arrange a video meeting. Thank you.\n\nSincerely,\n{{accountSignature}}"
+          }
+        ]
+      }
+    ]
+  }
+]

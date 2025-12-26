@@ -26,6 +26,7 @@ import {
   Check,
   UserCog
 } from "lucide-react"
+import { ThemeToggle } from "@/components/theme-toggle"
 
 interface Campaign {
   id: string
@@ -611,18 +612,20 @@ export function UnifiedCampaignsDashboard({
           </p>
         </div>
         
-        
-        {isAdmin && (
-          <Button
-            onClick={() => setShowCampaignSelector(!showCampaignSelector)}
-            variant="outline"
-            className="flex items-center gap-2 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
-          >
-            <Settings className="w-4 h-4" />
-            Select Campaigns
-            <ChevronDown className={`w-4 h-4 transition-transform ${showCampaignSelector ? 'rotate-180' : ''}`} />
-          </Button>
-        )}
+        <div className="flex items-center gap-3">
+          <ThemeToggle />
+          {isAdmin && (
+            <Button
+              onClick={() => setShowCampaignSelector(!showCampaignSelector)}
+              variant="outline"
+              className="flex items-center gap-2 border-slate-300 dark:border-slate-600 text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-700"
+            >
+              <Settings className="w-4 h-4" />
+              Select Campaigns
+              <ChevronDown className={`w-4 h-4 transition-transform ${showCampaignSelector ? 'rotate-180' : ''}`} />
+            </Button>
+          )}
+        </div>
         
       </div>
 

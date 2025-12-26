@@ -49,6 +49,22 @@ const ALL_CAMPAIGNS = [
     workspaceName: 'Wings Over Campaign',
     category: 'roger'
   },
+  {
+    id: 'roger-real-estate-official',
+    name: 'Roger Real Estate Official',
+    campaignId: '2d3a8573-8e95-4497-a72d-d70e7f4176f2',
+    workspaceId: '1',
+    workspaceName: 'Wings Over Campaign',
+    category: 'roger'
+  },
+  {
+    id: 'roger-campaign-7451e173',
+    name: 'Roger Campaign',
+    campaignId: '7451e173-09d4-4ccb-ad1e-8912e5a2c239',
+    workspaceId: '1',
+    workspaceName: 'Wings Over Campaign',
+    category: 'roger'
+  },
   // Reachify Campaigns
   {
     id: 'reachify-campaign',
@@ -132,44 +148,132 @@ export async function GET(request: NextRequest) {
     // Helper function to add delay between requests
     const delay = (ms: number) => new Promise(resolve => setTimeout(resolve, ms))
 
-    // Helper function to retry API calls with exponential backoff
+    // Rate limit tracking
+    let consecutiveRateLimits = 0
+    const MAX_CONSECUTIVE_RATE_LIMITS = 2
+
+    // Helper function to retry API calls with exponential backoff and proper 429 handling
     async function retryWithBackoff<T>(
-      fn: () => Promise<T>,
-      maxRetries: number = 2,
-      baseDelay: number = 300
-    ): Promise<T> {
-      let lastError: Error | null = null
+      fn: () => Promise<Response>,
+      maxRetries: number = 5,
+      baseDelay: number = 2000
+    ): Promise<Response> {
+      let lastResponse: Response | null = null
       
       for (let attempt = 0; attempt <= maxRetries; attempt++) {
         try {
           if (attempt > 0) {
-            const delayMs = baseDelay * Math.pow(2, attempt - 1)
-            console.log(`Retrying in ${delayMs}ms (attempt ${attempt + 1}/${maxRetries + 1})`)
+            // Calculate delay based on response status
+            let delayMs = baseDelay * Math.pow(2, attempt - 1)
+            
+            // If we have a Retry-After header from previous attempt, use it
+            if (lastResponse?.headers.has('Retry-After')) {
+              const retryAfter = parseInt(lastResponse.headers.get('Retry-After') || '0', 10)
+              if (retryAfter > 0) {
+                delayMs = Math.max(retryAfter * 1000, 10000) // At least 10 seconds, or Retry-After value
+                console.log(`Rate limited. Waiting ${retryAfter} seconds as specified by Retry-After header`)
+              }
+            } else if (lastResponse?.status === 429) {
+              // For 429 errors without Retry-After, use aggressive exponential backoff
+              delayMs = Math.max(10000, baseDelay * Math.pow(4, attempt - 1)) // Start at 10 seconds, then 40s, 160s
+              console.log(`Rate limited (429). Waiting ${delayMs / 1000}s before retry (attempt ${attempt + 1}/${maxRetries + 1})`)
+            }
+            
+            console.log(`Retrying in ${delayMs / 1000}s (attempt ${attempt + 1}/${maxRetries + 1})`)
             await delay(delayMs)
           }
           
-          return await fn()
+          const response = await fn()
+          lastResponse = response
+          
+          // Check for rate limit BEFORE throwing error
+          if (response.status === 429) {
+            consecutiveRateLimits++
+            console.warn(`Rate limit hit (429). Consecutive rate limits: ${consecutiveRateLimits}/${MAX_CONSECUTIVE_RATE_LIMITS}`)
+            
+            // If we've hit too many consecutive rate limits, stop processing
+            if (consecutiveRateLimits >= MAX_CONSECUTIVE_RATE_LIMITS) {
+              throw new Error(`HTTP 429: Too many consecutive rate limits. Please wait before retrying.`)
+            }
+            
+            // Continue to retry logic
+            continue
+          }
+          
+          // Reset consecutive rate limits on success
+          consecutiveRateLimits = 0
+          
+          // Check for other error statuses
+          if (!response.ok) {
+            // Don't retry on certain error types
+            if ([401, 403, 404].includes(response.status)) {
+              throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+            }
+            // For other errors, throw but allow retry
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+          }
+          
+          return response
         } catch (error) {
-          lastError = error as Error
+          // If it's not a Response error, rethrow
+          if (!(error instanceof Error && error.message.includes('HTTP'))) {
+            throw error
+          }
+          
+          // Extract status code from error message
+          const statusMatch = error.message.match(/HTTP (\d+)/)
+          const status = statusMatch ? parseInt(statusMatch[1], 10) : null
+          
+          if (status === 429) {
+            consecutiveRateLimits++
+            console.warn(`Rate limit hit (429). Consecutive rate limits: ${consecutiveRateLimits}/${MAX_CONSECUTIVE_RATE_LIMITS}`)
+            
+            if (consecutiveRateLimits >= MAX_CONSECUTIVE_RATE_LIMITS) {
+              throw new Error(`HTTP 429: Too many consecutive rate limits. Please wait before retrying.`)
+            }
+            
+            // Continue to next retry attempt
+            if (attempt < maxRetries) {
+              continue
+            }
+          }
           
           // Don't retry on certain error types
-          if (error instanceof Error && (
-            error.message.includes('401') || 
-            error.message.includes('403') ||
-            error.message.includes('404')
-          )) {
-            break
+          if (status && [401, 403, 404].includes(status)) {
+            throw error
           }
           
           console.warn(`Attempt ${attempt + 1} failed:`, error)
+          
+          // If we've exhausted retries, throw
+          if (attempt === maxRetries) {
+            throw error
+          }
         }
       }
       
-      throw lastError
+      throw new Error(`Failed after ${maxRetries + 1} attempts`)
     }
 
     // Process campaigns to get their email templates
-    const allEmailTemplates = []
+    const allEmailTemplates: Array<{
+      id: string
+      campaignName: string
+      campaignId: string
+      workspaceName: string
+      category: string
+      subsequenceId: string
+      subsequenceName: string
+      sequenceIndex: number
+      stepIndex: number
+      variantIndex: number
+      subject: string
+      body: string
+      step_name: string
+      variant_name: string
+      delay?: number
+      step_type: string
+    }> = []
     
     for (let index = 0; index < campaignsToSearch.length; index++) {
       const campaign = campaignsToSearch[index]
@@ -180,9 +284,20 @@ export async function GET(request: NextRequest) {
         continue
       }
 
-      // Add delay for rate limiting
+      // Add delay for rate limiting - conservative delays to prevent rate limits
       if (index > 0) {
-        await delay(500)
+        // Progressive delay: longer delays as we process more campaigns
+        const baseDelay = 3000 // 3 seconds base
+        const progressiveDelay = Math.min(index * 500, 10000) // Up to 10 seconds max
+        const delayMs = baseDelay + progressiveDelay
+        console.log(`Waiting ${delayMs / 1000}s before processing next campaign (${index + 1}/${campaignsToSearch.length})`)
+        await delay(delayMs)
+      }
+      
+      // Check if we've hit too many rate limits - stop processing if so
+      if (consecutiveRateLimits >= MAX_CONSECUTIVE_RATE_LIMITS) {
+        console.warn(`Stopping campaign processing due to excessive rate limits`)
+        break
       }
 
       try {
@@ -194,7 +309,7 @@ export async function GET(request: NextRequest) {
         try {
           console.log('Approach 1: Fetching campaign details...')
           const campaignResponse = await retryWithBackoff(async () => {
-            const res = await fetch(
+            return await fetch(
               `${INSTANTLY_BASE_URL}/api/v2/campaigns/${campaign.campaignId}`,
               {
                 headers: {
@@ -203,46 +318,52 @@ export async function GET(request: NextRequest) {
                 },
               }
             )
-
-            if (!res.ok) {
-              throw new Error(`HTTP ${res.status}: Failed to fetch campaign ${campaign.campaignId}`)
-            }
-
-            return res
           })
 
           const campaignData = await campaignResponse.json()
           console.log('Campaign structure keys:', Object.keys(campaignData))
           
           // Look for sequences directly in campaign data
-          if (campaignData.sequences) {
-            console.log(`Found ${campaignData.sequences.length} sequences in campaign data`)
-            campaignData.sequences.forEach((sequence: any, seqIndex: number) => {
-              const steps = sequence.steps || []
-              steps.forEach((step: any, stepIndex: number) => {
-                if (step.variants) {
-                  step.variants.forEach((variant: any, variantIndex: number) => {
-                    if (variant.subject || variant.body) {
-                      console.log(`Adding template from campaign sequences: ${variant.subject}`)
-                      allEmailTemplates.push({
-                        id: `${campaign.campaignId}-seq-${seqIndex}-${stepIndex}-${variantIndex}`,
-                        campaignName: campaign.name,
-                        campaignId: campaign.campaignId,
-                        workspaceName: campaign.workspaceName,
-                        category: campaign.category,
-                        subsequenceId: `sequence-${seqIndex}`,
-                        subsequenceName: sequence.name || `Sequence ${seqIndex + 1}`,
-                        sequenceIndex: seqIndex + 1,
-                        stepIndex: stepIndex + 1,
-                        variantIndex: variantIndex + 1,
-                        subject: variant.subject || 'No Subject',
-                        body: variant.body || 'No Content',
-                        step_name: step.name || `Step ${stepIndex + 1}`,
-                        variant_name: variant.name || `Variant ${variantIndex + 1}`
-                      })
-                    }
-                  })
-                }
+          // According to API docs: "Even though this field is an array, only the first element is used"
+          if (campaignData.sequences && campaignData.sequences.length > 0) {
+            const sequence = campaignData.sequences[0] // Only use first sequence
+            const steps = sequence.steps || []
+            console.log(`Found ${steps.length} steps in campaign main sequence`)
+            
+            steps.forEach((step: any, stepIndex: number) => {
+              // Ensure step has variants
+              if (!step.variants || step.variants.length === 0) {
+                console.warn(`Step ${stepIndex + 1} has no variants, skipping`)
+                return
+              }
+              
+              // Process each variant - include ALL variants, even disabled ones
+              step.variants.forEach((variant: any, variantIndex: number) => {
+                // Get subject and body - use empty string if not provided (don't use defaults)
+                const subject = variant.subject ?? ''
+                const body = variant.body ?? ''
+                
+                // Log for debugging
+                console.log(`Adding template: Step ${stepIndex + 1}, Variant ${variantIndex + 1}, Delay: ${step.delay ?? 'none'}, Disabled: ${variant.v_disabled || false}, Subject length: ${subject.length}, Body length: ${body.length}`)
+                
+                allEmailTemplates.push({
+                  id: `${campaign.campaignId}-main-seq-${stepIndex}-${variantIndex}`,
+                  campaignName: campaign.name,
+                  campaignId: campaign.campaignId,
+                  workspaceName: campaign.workspaceName,
+                  category: campaign.category,
+                  subsequenceId: 'main-sequence',
+                  subsequenceName: sequence.name || 'Main Sequence',
+                  sequenceIndex: 1,
+                  stepIndex: stepIndex + 1,
+                  variantIndex: variantIndex + 1,
+                  subject: subject, // Preserve original subject, even if empty
+                  body: body, // Preserve original body content exactly as returned from API
+                  step_name: step.name || `Step ${stepIndex + 1}`,
+                  variant_name: variant.name || `Variant ${variantIndex + 1}`,
+                  delay: step.delay !== undefined ? step.delay : (stepIndex === 0 ? 0 : undefined), // Delay is days to wait before NEXT email
+                  step_type: step.type || 'email'
+                })
               })
             })
           }
@@ -255,7 +376,7 @@ export async function GET(request: NextRequest) {
               try {
                 console.log(`Fetching subsequence: ${subsequence.id}`)
                 const subseqResponse = await retryWithBackoff(async () => {
-                  const res = await fetch(
+                  return await fetch(
                     `${INSTANTLY_BASE_URL}/api/v2/subsequences/${subsequence.id}`,
                     {
                       headers: {
@@ -264,49 +385,61 @@ export async function GET(request: NextRequest) {
                       },
                     }
                   )
-
-                  if (!res.ok) {
-                    throw new Error(`HTTP ${res.status}: Failed to fetch subsequence ${subsequence.id}`)
-                  }
-
-                  return res
                 })
 
                 const subseqData = await subseqResponse.json()
                 console.log('Subsequence structure keys:', Object.keys(subseqData))
+                console.log('Subsequence name:', subseqData.name)
+                console.log('Subsequence sequences count:', subseqData.sequences?.length || 0)
                 
-                if (subseqData.sequences) {
-                  subseqData.sequences.forEach((sequence: any, seqIndex: number) => {
-                    const steps = sequence.steps || []
-                    steps.forEach((step: any, stepIndex: number) => {
-                      if (step.variants) {
-                        step.variants.forEach((variant: any, variantIndex: number) => {
-                          if (variant.subject || variant.body) {
-                            console.log(`Adding template from subsequence: ${variant.subject}`)
-                            allEmailTemplates.push({
-                              id: `${campaign.campaignId}-${subsequence.id}-${seqIndex}-${stepIndex}-${variantIndex}`,
-                              campaignName: campaign.name,
-                              campaignId: campaign.campaignId,
-                              workspaceName: campaign.workspaceName,
-                              category: campaign.category,
-                              subsequenceId: subsequence.id,
-                              subsequenceName: subsequence.name || `Subsequence ${subsequence.id}`,
-                              sequenceIndex: seqIndex + 1,
-                              stepIndex: stepIndex + 1,
-                              variantIndex: variantIndex + 1,
-                              subject: variant.subject || 'No Subject',
-                              body: variant.body || 'No Content',
-                              step_name: step.name || `Step ${stepIndex + 1}`,
-                              variant_name: variant.name || `Variant ${variantIndex + 1}`
-                            })
-                          }
-                        })
-                      }
+                // According to API docs: "Even though this field is an array, only the first element is used"
+                if (subseqData.sequences && subseqData.sequences.length > 0) {
+                  const sequence = subseqData.sequences[0] // Only use first sequence
+                  const steps = sequence.steps || []
+                  console.log(`Found ${steps.length} steps in subsequence ${subseqData.name}`)
+                  
+                  steps.forEach((step: any, stepIndex: number) => {
+                    // Ensure step has variants
+                    if (!step.variants || step.variants.length === 0) {
+                      console.warn(`Subsequence step ${stepIndex + 1} has no variants, skipping`)
+                      return
+                    }
+                    
+                    // Process each variant - include ALL variants, even disabled ones
+                    step.variants.forEach((variant: any, variantIndex: number) => {
+                      // Get subject and body - use empty string if not provided (don't use defaults)
+                      const subject = variant.subject ?? ''
+                      const body = variant.body ?? ''
+                      
+                      // Log for debugging
+                      console.log(`Adding template from subsequence: Step ${stepIndex + 1}, Variant ${variantIndex + 1}, Delay: ${step.delay ?? 'none'}, Disabled: ${variant.v_disabled || false}, Subject length: ${subject.length}, Body length: ${body.length}`)
+                      
+                      allEmailTemplates.push({
+                        id: `${campaign.campaignId}-${subsequence.id}-${stepIndex}-${variantIndex}`,
+                        campaignName: campaign.name,
+                        campaignId: campaign.campaignId,
+                        workspaceName: campaign.workspaceName,
+                        category: campaign.category,
+                        subsequenceId: subsequence.id,
+                        subsequenceName: subseqData.name || subsequence.name || `Subsequence ${subsequence.id}`,
+                        sequenceIndex: 1, // Always 1 since we only use sequences[0]
+                        stepIndex: stepIndex + 1,
+                        variantIndex: variantIndex + 1,
+                        subject: subject, // Preserve original subject, even if empty
+                        body: body, // Preserve original body content exactly as returned from API
+                        step_name: step.name || `Step ${stepIndex + 1}`,
+                        variant_name: variant.name || `Variant ${variantIndex + 1}`,
+                        delay: step.delay !== undefined ? step.delay : (stepIndex === 0 ? 0 : undefined), // Delay is days to wait before NEXT email
+                        step_type: step.type || 'email'
+                      })
                     })
                   })
+                } else {
+                  console.warn(`Subsequence ${subsequence.id} has no sequences`)
                 }
 
-                await delay(200) // Small delay between subsequence requests
+                // Increased delay between subsequence requests to avoid rate limits
+                await delay(2000) // 2 seconds between subsequences
               } catch (subseqError) {
                 console.warn(`Error fetching subsequence ${subsequence.id}:`, subseqError)
               }
@@ -336,7 +469,8 @@ export async function GET(request: NextRequest) {
                     subject: step.subject || step.title || 'No Subject',
                     body: step.body || step.content || 'No Content',
                     step_name: step.name || `Step ${stepIndex + 1}`,
-                    variant_name: 'Default'
+                    variant_name: 'Default',
+                    step_type: 'email'
                   })
                 }
               })
@@ -359,7 +493,8 @@ export async function GET(request: NextRequest) {
                 subject: 'Email content structure not found',
                 body: `Campaign: ${campaign.name}\nWorkspace: ${campaign.workspaceName}\nCategory: ${campaign.category}\n\nThis campaign exists but its email content structure could not be determined from the available APIs. The campaign may use a different email structure or may not have email sequences configured.`,
                 step_name: 'Unknown',
-                variant_name: 'Unknown'
+                variant_name: 'Unknown',
+                step_type: 'email'
               })
             }
           }
@@ -382,7 +517,8 @@ export async function GET(request: NextRequest) {
             subject: 'Error loading email content',
             body: `Campaign: ${campaign.name}\nError: ${campaignError instanceof Error ? campaignError.message : 'Unknown error'}\n\nThis campaign could not be loaded. This may be due to API permissions, network issues, or campaign configuration.`,
             step_name: 'Error',
-            variant_name: 'Error'
+            variant_name: 'Error',
+            step_type: 'email'
           })
         }
 
