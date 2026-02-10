@@ -49,22 +49,6 @@ const ALL_CAMPAIGNS = [
     workspaceName: 'Wings Over Campaign',
     category: 'roger'
   },
-  {
-    id: 'roger-real-estate-official',
-    name: 'Roger Real Estate Official',
-    campaignId: '2d3a8573-8e95-4497-a72d-d70e7f4176f2',
-    workspaceId: '1',
-    workspaceName: 'Wings Over Campaign',
-    category: 'roger'
-  },
-  {
-    id: 'roger-campaign-7451e173',
-    name: 'Roger Campaign',
-    campaignId: '7451e173-09d4-4ccb-ad1e-8912e5a2c239',
-    workspaceId: '1',
-    workspaceName: 'Wings Over Campaign',
-    category: 'roger'
-  },
   // Reachify Campaigns
   {
     id: 'reachify-campaign',
@@ -120,11 +104,15 @@ export async function POST(request: NextRequest) {
               'PRUSA New Compass Leads',
               'PRUSA Compass 7.9M+',
               'PRUSA Target Company 7.9M+',
-              'PRUSA Florida Campaign'
+              'PRUSA CA #2'
             ]
             
             const prusaCampaigns = prusaData
-              .filter((campaign: any) => allowedPrusaCampaigns.includes(campaign.campaign_name))
+              .filter((campaign: any) => 
+                allowedPrusaCampaigns.includes(campaign.campaign_name) ||
+                campaign.campaign_id === '43daa37e-1973-4e90-b8d5-5f218885e12d' || // PRUSA New York
+                campaign.campaign_id === 'e8f31410-6020-490c-a9d0-6f5220464d42' // PRUSA CA #2
+              )
               .map((campaign: any) => ({
                 id: `prusa-${campaign.campaign_id}`,
                 name: campaign.campaign_name,

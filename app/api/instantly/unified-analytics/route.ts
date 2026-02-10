@@ -103,15 +103,26 @@ export async function GET(request: NextRequest) {
               'PRUSA New Compass Leads',
               'PRUSA Compass 7.9M+',
               'PRUSA Target Company 7.9M+',
-              'PRUSA Florida Campaign'
+              'PRUSA CA #2'
             ]
             
-            filteredData = data.filter((campaign: any) => 
-              allowedPrusaCampaigns.includes(campaign.campaign_name) ||
-              campaign.campaign_id === '43daa37e-1973-4e90-b8d5-5f218885e12d' || // PRUSA New York
-              campaign.campaign_id === '321ff703-2410-4a39-a24a-3a46c4c29e73' || // New PRUSA Campaign
-              campaign.campaign_id === '25057551-6b40-45fe-97a9-2b5e3db3bafd' // PRUSA Florida Campaign
-            )
+            // Log all campaigns for debugging
+            console.log(`[PRUSA] Total campaigns from API: ${data.length}`)
+            console.log(`[PRUSA] Campaign IDs:`, data.map((c: any) => ({ id: c.campaign_id, name: c.campaign_name })))
+            
+            filteredData = data.filter((campaign: any) => {
+              const matchesName = allowedPrusaCampaigns.includes(campaign.campaign_name)
+              const matchesId = campaign.campaign_id === '43daa37e-1973-4e90-b8d5-5f218885e12d' || // PRUSA New York
+                               campaign.campaign_id === 'e8f31410-6020-490c-a9d0-6f5220464d42' // PRUSA CA #2
+              
+              if (matchesId || matchesName) {
+                console.log(`[PRUSA] Including campaign: ${campaign.campaign_name} (${campaign.campaign_id})`)
+              }
+              
+              return matchesName || matchesId
+            })
+            
+            console.log(`[PRUSA] Filtered campaigns count: ${filteredData.length}`)
           }
           
           // Add filtered campaigns from this workspace

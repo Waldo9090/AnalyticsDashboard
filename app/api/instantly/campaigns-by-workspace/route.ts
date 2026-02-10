@@ -96,10 +96,14 @@ export async function GET(request: NextRequest) {
         'PRUSA New Compass Leads',
         'PRUSA Compass 7.9M+',
         'PRUSA Target Company 7.9M+',
-        'PRUSA Florida Campaign'
+        'PRUSA CA #2'
       ]
       filteredCampaigns = campaigns.filter((campaign: any) => 
-        allowedPrusaCampaigns.includes(campaign.name)
+        allowedPrusaCampaigns.includes(campaign.name) ||
+        campaign.campaign_id === '43daa37e-1973-4e90-b8d5-5f218885e12d' || // PRUSA New York
+        campaign.campaign_id === 'e8f31410-6020-490c-a9d0-6f5220464d42' || // PRUSA CA #2
+        campaign.id === '43daa37e-1973-4e90-b8d5-5f218885e12d' || // PRUSA New York (alternative field)
+        campaign.id === 'e8f31410-6020-490c-a9d0-6f5220464d42' // PRUSA CA #2 (alternative field)
       )
     } else if (workspaceId === '1') {
       // Roger workspace - filter to specific campaigns
