@@ -224,7 +224,10 @@ export function UnifiedCampaignsDashboard({
         // Load saved preferences first
         const savedCampaignIds = await loadSavedPreferences()
         
-        const categories = ['roger', 'reachify', 'prusa', 'cloudlea']
+        // If a specific category is set (not 'all'), only fetch that category
+        const categories = defaultCategory && defaultCategory !== 'all' 
+          ? [defaultCategory] 
+          : ['roger', 'reachify', 'prusa', 'cloudlea']
         const allCampaignsData: Campaign[] = []
         let aggregatedTotals: CampaignAnalytics = {
           campaign_name: 'All Campaigns',
