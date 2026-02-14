@@ -33,7 +33,7 @@ interface Campaign {
   campaignId: string
   workspaceId: string
   workspaceName: string
-  category: 'roger' | 'reachify' | 'prusa'
+  category: 'roger' | 'reachify' | 'prusa' | 'cloudlea'
   analytics?: any
   selected: boolean
 }
@@ -56,7 +56,7 @@ interface CampaignAnalytics {
 }
 
 interface UnifiedCampaignsDashboardProps {
-  defaultCategory?: 'roger' | 'reachify' | 'prusa' | 'all'
+  defaultCategory?: 'roger' | 'reachify' | 'prusa' | 'cloudlea' | 'all'
   title?: string
 }
 
@@ -224,7 +224,7 @@ export function UnifiedCampaignsDashboard({
         // Load saved preferences first
         const savedCampaignIds = await loadSavedPreferences()
         
-        const categories = ['roger', 'reachify', 'prusa']
+        const categories = ['roger', 'reachify', 'prusa', 'cloudlea']
         const allCampaignsData: Campaign[] = []
         let aggregatedTotals: CampaignAnalytics = {
           campaign_name: 'All Campaigns',
@@ -279,7 +279,7 @@ export function UnifiedCampaignsDashboard({
                   campaignId: campaignId,
                   workspaceId: campaign.workspaceId || '1',
                   workspaceName: campaign.workspaceName || 'Default Workspace',
-                  category: category as 'roger' | 'reachify' | 'prusa',
+                  category: category as 'roger' | 'reachify' | 'prusa' | 'cloudlea',
                   analytics: campaign.analytics || campaign,
                   selected: isSelected
                 }
@@ -363,7 +363,7 @@ export function UnifiedCampaignsDashboard({
     setHasUnsavedChanges(true)
   }
 
-  const selectCategoryOnly = (category: 'roger' | 'reachify' | 'prusa') => {
+  const selectCategoryOnly = (category: 'roger' | 'reachify' | 'prusa' | 'cloudlea') => {
     setCampaigns(prev => {
       const updated = prev.map(campaign => ({ 
         ...campaign, 
@@ -717,6 +717,7 @@ export function UnifiedCampaignsDashboard({
                               <span className={`text-xs px-2 py-1 rounded-full capitalize ${
                                 campaign.category === 'roger' ? 'bg-blue-100 dark:bg-blue-900/20 text-blue-800 dark:text-blue-300' :
                                 campaign.category === 'reachify' ? 'bg-green-100 dark:bg-green-900/20 text-green-800 dark:text-green-300' :
+                                campaign.category === 'cloudlea' ? 'bg-orange-100 dark:bg-orange-900/20 text-orange-800 dark:text-orange-300' :
                                 'bg-purple-100 dark:bg-purple-900/20 text-purple-800 dark:text-purple-300'
                               }`}>
                                 {campaign.category}
@@ -785,11 +786,11 @@ export function UnifiedCampaignsDashboard({
       )}
 
       {activeTab === 'inbox' && (
-        <InterestedLeadsThreads category={displayCategory as 'roger' | 'reachify' | 'prusa' | 'all'} />
+        <InterestedLeadsThreads category={displayCategory as 'roger' | 'reachify' | 'prusa' | 'cloudlea' | 'all'} />
       )}
 
       {activeTab === 'emails' && (
-        <EmailFrameworks category={displayCategory as 'roger' | 'reachify' | 'prusa' | 'all'} />
+        <EmailFrameworks category={displayCategory as 'roger' | 'reachify' | 'prusa' | 'cloudlea' | 'all'} />
       )}
 
       {activeTab === 'mailboxes' && (

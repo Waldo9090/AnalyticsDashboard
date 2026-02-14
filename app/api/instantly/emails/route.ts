@@ -113,7 +113,8 @@ export async function GET(request: NextRequest) {
               .filter((campaign: any) => 
                 allowedPrusaCampaigns.includes(campaign.campaign_name) ||
                 campaign.campaign_id === '43daa37e-1973-4e90-b8d5-5f218885e12d' || // PRUSA New York
-                campaign.campaign_id === 'e8f31410-6020-490c-a9d0-6f5220464d42' // PRUSA CA #2
+                campaign.campaign_id === 'e8f31410-6020-490c-a9d0-6f5220464d42' || // PRUSA CA #2
+                campaign.campaign_id === '25057551-6b40-45fe-97a9-2b5e3db3bafd' // PRUSA Florida Campaign
               )
               .map((campaign: any) => ({
                 id: `prusa-${campaign.campaign_id}`,
@@ -123,6 +124,21 @@ export async function GET(request: NextRequest) {
                 workspaceName: 'Paramount Realty USA', 
                 category: 'prusa'
               }))
+            
+            // Also extract the Cloudlea campaign separately
+            const cloudleaCampaignsFromPrusa = prusaData
+              .filter((campaign: any) => 
+                campaign.campaign_id === '81c725e5-91e2-4d4b-9162-ed1bab92364d' // Cloudlea Campaign
+              )
+              .map((campaign: any) => ({
+                id: `cloudlea-${campaign.campaign_id}`,
+                name: campaign.campaign_name,
+                campaignId: campaign.campaign_id,
+                workspaceId: '2',
+                workspaceName: 'Cloudlea', 
+                category: 'cloudlea'
+              }))
+            prusaCampaigns = [...prusaCampaigns, ...cloudleaCampaignsFromPrusa]
             console.log('Filtered PRUSA campaigns:', prusaCampaigns.length, prusaCampaigns.map(c => c.name))
           } else {
             console.error('Failed to fetch PRUSA campaigns:', prusaResponse.status, await prusaResponse.text())
@@ -135,9 +151,12 @@ export async function GET(request: NextRequest) {
 
     // Filter campaigns by category if specified
     if (category && category !== 'all') {
-      if (category === 'prusa') {
-        // For PRUSA category, only use PRUSA campaigns
-        campaignsToSearch = prusaCampaigns
+      if (category === 'cloudlea') {
+        // For Cloudlea category, only use Cloudlea campaign
+        campaignsToSearch = prusaCampaigns.filter(c => c.category === 'cloudlea')
+      } else if (category === 'prusa') {
+        // For PRUSA category, only use PRUSA campaigns (not Cloudlea)
+        campaignsToSearch = prusaCampaigns.filter(c => c.category === 'prusa')
       } else {
         // For other categories, filter from ALL_CAMPAIGNS
         campaignsToSearch = ALL_CAMPAIGNS.filter(campaign => campaign.category === category)

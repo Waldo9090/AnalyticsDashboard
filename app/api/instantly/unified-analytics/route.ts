@@ -47,6 +47,12 @@ const WORKSPACE_CONFIG = [
     workspaceName: 'Reachify (5 accounts)',
     category: 'reachify',
     apiKeyIndex: '4'
+  },
+  {
+    workspaceId: '2',
+    workspaceName: 'Cloudlea',
+    category: 'cloudlea',
+    apiKeyIndex: '2'
   }
 ]
 
@@ -95,7 +101,12 @@ export async function GET(request: NextRequest) {
           
           // Filter campaigns based on workspace category
           let filteredData = data
-          if (workspace.category === 'prusa') {
+          if (workspace.category === 'cloudlea') {
+            // Cloudlea workspace - only include the Cloudlea campaign
+            filteredData = data.filter((campaign: any) => 
+              campaign.campaign_id === '81c725e5-91e2-4d4b-9162-ed1bab92364d' // Cloudlea Campaign
+            )
+          } else if (workspace.category === 'prusa') {
             // For PRUSA workspace, filter to specific allowed campaigns
             const allowedPrusaCampaigns = [
               'Candytrail Past Compass',
@@ -113,7 +124,10 @@ export async function GET(request: NextRequest) {
             filteredData = data.filter((campaign: any) => {
               const matchesName = allowedPrusaCampaigns.includes(campaign.campaign_name)
               const matchesId = campaign.campaign_id === '43daa37e-1973-4e90-b8d5-5f218885e12d' || // PRUSA New York
-                               campaign.campaign_id === 'e8f31410-6020-490c-a9d0-6f5220464d42' // PRUSA CA #2
+                               campaign.campaign_id === 'e8f31410-6020-490c-a9d0-6f5220464d42' || // PRUSA CA #2
+                               campaign.campaign_id === '321ff703-2410-4a39-a24a-3a46c4c29e73' || // New PRUSA Campaign
+                               campaign.campaign_id === '25057551-6b40-45fe-97a9-2b5e3db3bafd' || // PRUSA Florida Campaign
+                               campaign.campaign_id === 'd3a7483e-e49f-4163-8ea4-981f969b83a8' // New PRUSA Campaign
               
               if (matchesId || matchesName) {
                 console.log(`[PRUSA] Including campaign: ${campaign.campaign_name} (${campaign.campaign_id})`)
@@ -230,7 +244,8 @@ export async function GET(request: NextRequest) {
       categories: {
         roger: campaigns.filter(c => c.category === 'roger').length,
         reachify: campaigns.filter(c => c.category === 'reachify').length,
-        prusa: campaigns.filter(c => c.category === 'prusa').length
+        prusa: campaigns.filter(c => c.category === 'prusa').length,
+        cloudlea: campaigns.filter(c => c.category === 'cloudlea').length
       },
       message: `Fetched analytics for ${campaigns.length} campaigns`
     })

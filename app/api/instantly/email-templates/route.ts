@@ -101,7 +101,9 @@ export async function GET(request: NextRequest) {
               'PRUSA New Compass Leads',
               'PRUSA Compass 7.9M+',
               'PRUSA Target Company 7.9M+',
-              'PRUSA CA #2'
+              'PRUSA CA #2',
+              'PRUSA Florida Campaign',
+              'PRUSA CO, AZ, NJ, HI Campaign'
             ]
             
             const prusaCampaigns = prusaData
@@ -118,7 +120,21 @@ export async function GET(request: NextRequest) {
                 workspaceName: 'Paramount Realty USA', 
                 category: 'prusa'
               }))
-            campaignsToSearch = [...campaignsToSearch, ...prusaCampaigns]
+            
+            // Extract Cloudlea campaign separately
+            const cloudleaCampaigns = prusaData
+              .filter((campaign: any) => 
+                campaign.campaign_id === '81c725e5-91e2-4d4b-9162-ed1bab92364d' // Cloudlea Campaign
+              )
+              .map((campaign: any) => ({
+                id: `cloudlea-${campaign.campaign_id}`,
+                name: campaign.campaign_name,
+                campaignId: campaign.campaign_id,
+                workspaceId: '2',
+                workspaceName: 'Cloudlea', 
+                category: 'cloudlea'
+              }))
+            campaignsToSearch = [...campaignsToSearch, ...prusaCampaigns, ...cloudleaCampaigns]
           }
         }
       } catch (error) {

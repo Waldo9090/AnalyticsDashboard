@@ -12,6 +12,7 @@ function getApiKeyForWorkspace(workspaceId: string | null) {
     case '1':
       return process.env.INSTANTLY_API_KEY_1
     case '2':
+    case 'cloudlea': // Cloudlea uses workspace 2 API key
       return process.env.INSTANTLY_API_KEY_2
     case '3':
       return process.env.INSTANTLY_API_KEY_3
@@ -88,7 +89,12 @@ export async function GET(request: NextRequest) {
     // Filter campaigns based on workspace-specific rules
     let filteredCampaigns = campaigns
     
-    if (workspaceId === '2') {
+    if (workspaceId === 'cloudlea') {
+      // Cloudlea workspace - only the Cloudlea campaign (uses workspace 2 API key)
+      filteredCampaigns = campaigns.filter((campaign: any) => 
+        campaign.id === '81c725e5-91e2-4d4b-9162-ed1bab92364d' // Cloudlea Campaign
+      )
+    } else if (workspaceId === '2') {
       // PRUSA workspace - filter to specific campaigns
       const allowedPrusaCampaigns = [
         'Candytrail Past Compass',
@@ -147,6 +153,8 @@ function getWorkspaceName(workspaceId: string): string {
       return 'Workspace 3'
     case '4':
       return 'Reachify (5 accounts)'
+    case 'cloudlea':
+      return 'Cloudlea'
     default:
       return `Workspace ${workspaceId}`
   }
@@ -160,6 +168,8 @@ function getWorkspaceCategory(workspaceId: string): string {
       return 'prusa'
     case '4':
       return 'reachify'
+    case 'cloudlea':
+      return 'cloudlea'
     default:
       return 'other'
   }

@@ -49,6 +49,7 @@ export function Sidebar() {
     { icon: Target, label: "Roger", href: "/roger-campaigns", color: "bg-blue-500", campaignId: "roger" },
     { icon: Zap, label: "Reachify", href: "/reachify-campaigns", color: "bg-green-500", campaignId: "reachify" },
     { icon: Database, label: "PRUSA", href: "/prusa-campaigns", color: "bg-purple-500", campaignId: "prusa" },
+    { icon: Database, label: "Cloudlea", href: "/new-campaign-campaigns", color: "bg-orange-500", campaignId: "cloudlea" },
   ]
 
   // Filter campaigns based on user permissions

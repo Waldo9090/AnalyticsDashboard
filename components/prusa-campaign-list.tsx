@@ -37,7 +37,10 @@ const PRUSA_CAMPAIGN_IDS = [
   'de0864ce-252a-4aa2-8cb7-e33e55ad5997',
   'f211938a-9ffe-4262-9001-6e36892ba127',
   '51bab480-545d-4241-94e5-26d9e3fe34ad',
-  '25057551-6b40-45fe-97a9-2b5e3db3bafd' // PRUSA Florida Campaign
+  '25057551-6b40-45fe-97a9-2b5e3db3bafd', // PRUSA Florida Campaign
+  'd3a7483e-e49f-4163-8ea4-981f969b83a8', // New PRUSA Campaign
+  'cbb91330-4418-4ca2-904c-d0d8d606e95a', // PRUSA Campaign (Analytics/Leads)
+  'd4430065-74f6-4db6-aeb4-3b048e5bb44d' // PRUSA Campaign
 ]
 
 // Mock data for when API fails
