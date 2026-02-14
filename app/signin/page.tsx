@@ -80,7 +80,13 @@ export default function SignInPage() {
           
           // Redirect to first allowed campaign or dashboard
           if (userData.allowedCampaigns?.length > 0) {
-            router.push(`/${userData.allowedCampaigns[0]}-campaigns`)
+            const campaignRouteMap: Record<string, string> = {
+              'cloudlea': '/new-campaign-campaigns',
+              'new-campaign': '/new-campaign-campaigns',
+            }
+            const firstCampaign = userData.allowedCampaigns[0]
+            const redirectPath = campaignRouteMap[firstCampaign] || `/${firstCampaign}-campaigns`
+            router.push(redirectPath)
           } else {
             router.push('/dashboard')
           }

@@ -67,5 +67,17 @@
     "allowedCampaigns": [
       "prusa"
     ]
+  },
+  {
+    "id": "a3c7e921-4b8f-4d12-ae5c-1f9d83b27e04",
+    "email": "pranav.kode@cloudleap.com",
+    "password": "123456",
+    "displayName": "Pranav",
+    "createdAt": "2026-02-12T00:00:00.000Z",
+    "isActive": true,
+    "allowedCampaigns": [
+      "cloudlea",
+      "new-campaign"
+    ]
   }
 ]
