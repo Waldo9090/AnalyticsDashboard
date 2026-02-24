@@ -56,6 +56,12 @@ export const CLIENT_ACCESS_MAP: Record<string, ClientConfig> = {
     campaignId: '51bab480-545d-4241-94e5-26d9e3fe34ad',
     workspaceId: '2',
     description: 'PRUSA new campaign analytics'
+  },
+  'prusa-ca-re-agents': {
+    name: 'PRUSA CA RE Agents',
+    campaignId: 'fd602881-04ac-4336-9ef3-e4fbb7fffa92',
+    workspaceId: '2',
+    description: 'PRUSA California real estate agents campaign analytics'
   }
 }
 

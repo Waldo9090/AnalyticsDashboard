@@ -104,12 +104,18 @@ export async function GET(request: NextRequest) {
         'PRUSA Target Company 7.9M+',
         'PRUSA CA #2'
       ]
+      const allowedPrusaCampaignIds = [
+        '43daa37e-1973-4e90-b8d5-5f218885e12d', // PRUSA New York
+        'e8f31410-6020-490c-a9d0-6f5220464d42', // PRUSA CA #2
+        '321ff703-2410-4a39-a24a-3a46c4c29e73', // New PRUSA Campaign
+        '25057551-6b40-45fe-97a9-2b5e3db3bafd', // PRUSA Florida Campaign
+        'd3a7483e-e49f-4163-8ea4-981f969b83a8', // New PRUSA Campaign
+        'fd602881-04ac-4336-9ef3-e4fbb7fffa92', // PRUSA CA RE Agents
+      ]
       filteredCampaigns = campaigns.filter((campaign: any) => 
         allowedPrusaCampaigns.includes(campaign.name) ||
-        campaign.campaign_id === '43daa37e-1973-4e90-b8d5-5f218885e12d' || // PRUSA New York
-        campaign.campaign_id === 'e8f31410-6020-490c-a9d0-6f5220464d42' || // PRUSA CA #2
-        campaign.id === '43daa37e-1973-4e90-b8d5-5f218885e12d' || // PRUSA New York (alternative field)
-        campaign.id === 'e8f31410-6020-490c-a9d0-6f5220464d42' // PRUSA CA #2 (alternative field)
+        allowedPrusaCampaignIds.includes(campaign.campaign_id) ||
+        allowedPrusaCampaignIds.includes(campaign.id)
       )
     } else if (workspaceId === '1') {
       // Roger workspace - filter to specific campaigns

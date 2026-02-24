@@ -121,13 +121,18 @@ export async function GET(request: NextRequest) {
             console.log(`[PRUSA] Total campaigns from API: ${data.length}`)
             console.log(`[PRUSA] Campaign IDs:`, data.map((c: any) => ({ id: c.campaign_id, name: c.campaign_name })))
             
+            const allowedPrusaCampaignIds = [
+              '43daa37e-1973-4e90-b8d5-5f218885e12d', // PRUSA New York
+              'e8f31410-6020-490c-a9d0-6f5220464d42', // PRUSA CA #2
+              '321ff703-2410-4a39-a24a-3a46c4c29e73', // New PRUSA Campaign
+              '25057551-6b40-45fe-97a9-2b5e3db3bafd', // PRUSA Florida Campaign
+              'd3a7483e-e49f-4163-8ea4-981f969b83a8', // New PRUSA Campaign
+              'fd602881-04ac-4336-9ef3-e4fbb7fffa92', // PRUSA CA RE Agents
+            ]
+            
             filteredData = data.filter((campaign: any) => {
               const matchesName = allowedPrusaCampaigns.includes(campaign.campaign_name)
-              const matchesId = campaign.campaign_id === '43daa37e-1973-4e90-b8d5-5f218885e12d' || // PRUSA New York
-                               campaign.campaign_id === 'e8f31410-6020-490c-a9d0-6f5220464d42' || // PRUSA CA #2
-                               campaign.campaign_id === '321ff703-2410-4a39-a24a-3a46c4c29e73' || // New PRUSA Campaign
-                               campaign.campaign_id === '25057551-6b40-45fe-97a9-2b5e3db3bafd' || // PRUSA Florida Campaign
-                               campaign.campaign_id === 'd3a7483e-e49f-4163-8ea4-981f969b83a8' // New PRUSA Campaign
+              const matchesId = allowedPrusaCampaignIds.includes(campaign.campaign_id)
               
               if (matchesId || matchesName) {
                 console.log(`[PRUSA] Including campaign: ${campaign.campaign_name} (${campaign.campaign_id})`)
