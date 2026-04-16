@@ -79,5 +79,16 @@
       "cloudlea",
       "new-campaign"
     ]
+  },
+  {
+    "id": "3e4a2603-0e11-4b49-b7ec-8f4f1d5f89d2",
+    "email": "ari.heljakka@rootsignals.ai",
+    "password": "123456",
+    "displayName": "Ari Heljakka",
+    "createdAt": "2026-04-15T00:00:00.000Z",
+    "isActive": true,
+    "allowedCampaigns": [
+      "root-signals"
+    ]
   }
 ]

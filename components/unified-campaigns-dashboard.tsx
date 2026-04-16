@@ -58,11 +58,36 @@ interface CampaignAnalytics {
 interface UnifiedCampaignsDashboardProps {
   defaultCategory?: 'roger' | 'reachify' | 'prusa' | 'cloudlea' | 'all'
   title?: string
+  /** Static Root Signals metrics; hides Email Frameworks */
+  sampleMode?: boolean
+}
+
+const ROOT_SIGNALS_SAMPLE_INBOXES = [
+  'ari.heljakka@rootsignals.io',
+  'ari.heljakka@rootsignals.net',
+  'ari.heljakka@rootsignals.com',
+  'ari.heljakka@rootsignals.ai',
+  'ari.heljakka@rootsignals.co',
+  'ari@rootsignals.io',
+  'a.heljakka@rootsignals.io',
+  'ari.heljakka.sales@rootsignals.io',
+  'ari.heljakka.ops@rootsignals.io',
+  'ari.heljakka.support@rootsignals.io',
+  'ari.heljakka.team@rootsignals.io',
+  'ari.heljakka.campaigns@rootsignals.io',
+]
+
+const SAMPLE_METRICS = {
+  emailsSent: 13240,
+  replies: 3,
+  /** Opens as a percent of emails sent */
+  openRatePercent: 52,
 }
 
 export function UnifiedCampaignsDashboard({ 
   defaultCategory = 'all', 
-  title = "Unified Campaigns Dashboard" 
+  title = "Unified Campaigns Dashboard",
+  sampleMode = false,
 }: UnifiedCampaignsDashboardProps) {
   const { user } = useAuth()
   const [activeTab, setActiveTab] = useState('analytics')
@@ -216,6 +241,59 @@ export function UnifiedCampaignsDashboard({
   }
 
   useEffect(() => {
+    if (!sampleMode) return
+
+    const emailsSent = SAMPLE_METRICS.emailsSent
+    const openCount = Math.round(emailsSent * (SAMPLE_METRICS.openRatePercent / 100))
+    const syntheticAnalytics = {
+      leads_count: 0,
+      contacted_count: 0,
+      emails_sent_count: emailsSent,
+      open_count: openCount,
+      reply_count: SAMPLE_METRICS.replies,
+      link_click_count: 0,
+      bounced_count: 0,
+      unsubscribed_count: 0,
+      completed_count: 0,
+      total_opportunities: 0,
+      total_opportunity_value: 0,
+    }
+
+    setCampaigns([
+      {
+        id: 'root-signals-synthetic',
+        name: 'Root Signals',
+        campaignId: 'root-signals-campaign',
+        workspaceId: '0',
+        workspaceName: 'Root Signals workspace',
+        category: 'roger',
+        analytics: syntheticAnalytics,
+        selected: true,
+      },
+    ])
+    setTotals({
+      campaign_name: 'Root Signals',
+      campaign_id: 'root-signals',
+      campaign_status: 1,
+      leads_count: syntheticAnalytics.leads_count,
+      contacted_count: syntheticAnalytics.contacted_count,
+      emails_sent_count: syntheticAnalytics.emails_sent_count,
+      open_count: syntheticAnalytics.open_count,
+      reply_count: syntheticAnalytics.reply_count,
+      link_click_count: syntheticAnalytics.link_click_count,
+      bounced_count: syntheticAnalytics.bounced_count,
+      unsubscribed_count: syntheticAnalytics.unsubscribed_count,
+      completed_count: syntheticAnalytics.completed_count,
+      total_opportunities: syntheticAnalytics.total_opportunities,
+      total_opportunity_value: syntheticAnalytics.total_opportunity_value,
+    })
+    setLoading(false)
+    setError(null)
+  }, [sampleMode])
+
+  useEffect(() => {
+    if (sampleMode) return
+
     async function fetchAllCampaigns() {
       setLoading(true)
       setError(null)
@@ -322,7 +400,13 @@ export function UnifiedCampaignsDashboard({
     }
 
     fetchAllCampaigns()
-  }, [defaultCategory])
+  }, [defaultCategory, sampleMode])
+
+  useEffect(() => {
+    if (sampleMode && activeTab === 'emails') {
+      setActiveTab('analytics')
+    }
+  }, [sampleMode, activeTab])
 
   const toggleCampaignSelection = (campaignId: string) => {
     setCampaigns(prev => {
@@ -430,6 +514,10 @@ export function UnifiedCampaignsDashboard({
     ? ((validatedTotals.reply_count / validatedTotals.emails_sent_count) * 100) 
     : 0
 
+  const openRate = validatedTotals.emails_sent_count > 0
+    ? ((validatedTotals.open_count / validatedTotals.emails_sent_count) * 100)
+    : 0
+
   if (loading) {
     return (
       <div className="min-h-screen bg-white dark:bg-slate-950 flex items-center justify-center">
@@ -447,13 +535,15 @@ export function UnifiedCampaignsDashboard({
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-slate-800 dark:text-slate-100">{title}</h1>
-          <p className="text-slate-600 dark:text-slate-300">
-            {selectedCampaigns.length} of {campaigns.length} campaigns selected
-          </p>
+          {!sampleMode && (
+            <p className="text-slate-600 dark:text-slate-300">
+              {selectedCampaigns.length} of {campaigns.length} campaigns selected
+            </p>
+          )}
         </div>
         
         
-        {isAdmin && (
+        {isAdmin && !sampleMode && (
           <Button
             onClick={() => setShowCampaignSelector(!showCampaignSelector)}
             variant="outline"
@@ -468,7 +558,7 @@ export function UnifiedCampaignsDashboard({
       </div>
 
       {/* Campaign Selection Panel */}
-      {isAdmin && showCampaignSelector && (
+      {isAdmin && !sampleMode && showCampaignSelector && (
         <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
           <div className="flex items-center justify-between mb-4">
             <h3 className="text-lg font-semibold text-slate-800 dark:text-slate-100">Campaign Selection</h3>
@@ -561,6 +651,7 @@ export function UnifiedCampaignsDashboard({
           <Inbox className="w-4 h-4" />
           Inbox
         </button>
+        {!sampleMode && (
         <button
           onClick={() => setActiveTab('emails')}
           className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 ${
@@ -572,6 +663,7 @@ export function UnifiedCampaignsDashboard({
           <FileText className="w-4 h-4" />
           Email Frameworks
         </button>
+        )}
         <button
           onClick={() => setActiveTab('mailboxes')}
           className={`flex items-center gap-2 px-4 py-3 text-sm font-medium border-b-2 transition-all duration-200 ${
@@ -655,6 +747,9 @@ export function UnifiedCampaignsDashboard({
                 <div className="text-3xl font-bold text-slate-800 dark:text-slate-100 mb-2">
                   {validatedTotals.open_count.toLocaleString()}
                 </div>
+                <div className="text-sm text-slate-500 dark:text-slate-400">
+                  ({openRate.toFixed(1)}%)
+                </div>
               </Card>
 
               {/* Opportunities */}
@@ -681,7 +776,9 @@ export function UnifiedCampaignsDashboard({
                 <table className="w-full">
                   <thead>
                     <tr className="border-b border-slate-200 dark:border-slate-700">
+                      {!sampleMode && (
                       <th className="text-left py-3 px-2 font-medium text-slate-600 dark:text-slate-300 text-sm w-8"></th>
+                      )}
                       <th className="text-left py-3 px-2 font-medium text-slate-600 dark:text-slate-300 text-sm">Campaign</th>
                       <th className="text-left py-3 px-2 font-medium text-slate-600 dark:text-slate-300 text-sm">Category</th>
                       <th className="text-left py-3 px-2 font-medium text-slate-600 dark:text-slate-300 text-sm">Sourced</th>
@@ -701,6 +798,7 @@ export function UnifiedCampaignsDashboard({
                       return (
                         <>
                           <tr key={campaign.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/50 transition-colors">
+                            {!sampleMode && (
                             <td className="py-4 px-2">
                               <button
                                 onClick={() => toggleExpandedCampaign(campaign.campaignId)}
@@ -713,6 +811,7 @@ export function UnifiedCampaignsDashboard({
                                 )}
                               </button>
                             </td>
+                            )}
                             <td className="py-4 px-2">
                               <div className="font-medium text-slate-800 dark:text-slate-200 text-sm">{campaign.name}</div>
                             </td>
@@ -748,7 +847,7 @@ export function UnifiedCampaignsDashboard({
                               </div>
                             </td>
                           </tr>
-                          {isExpanded && (
+                          {isExpanded && !sampleMode && (
                             <tr key={`${campaign.id}-details`}>
                               <td colSpan={7} className="px-2 py-0">
                                 <div className="bg-slate-50/50 dark:bg-slate-800/50 rounded-lg p-6 my-4">
@@ -788,20 +887,86 @@ export function UnifiedCampaignsDashboard({
         </div>
       )}
 
-      {activeTab === 'inbox' && (
+      {activeTab === 'inbox' && !sampleMode && (
         <InterestedLeadsThreads category={displayCategory as 'roger' | 'reachify' | 'prusa' | 'cloudlea' | 'all'} />
       )}
 
-      {activeTab === 'emails' && (
+      {activeTab === 'emails' && !sampleMode && (
         <EmailFrameworks category={displayCategory as 'roger' | 'reachify' | 'prusa' | 'cloudlea' | 'all'} />
       )}
 
-      {activeTab === 'mailboxes' && (
+      {activeTab === 'mailboxes' && sampleMode && (
+        <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+          <div className="mb-4">
+            <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Root Signals Mailboxes</h3>
+            <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+              Mailbox rows generated from Ari Heljakka aliases.
+            </p>
+          </div>
+          <div className="border border-slate-200 dark:border-slate-700 rounded-lg overflow-hidden">
+            {ROOT_SIGNALS_SAMPLE_INBOXES.map((email, index) => {
+              const domain = email.split('@')[1] || ''
+              return (
+                <div
+                  key={email}
+                  className={`grid grid-cols-12 gap-3 px-4 py-3 text-sm ${
+                    index !== ROOT_SIGNALS_SAMPLE_INBOXES.length - 1
+                      ? 'border-b border-slate-200 dark:border-slate-700'
+                      : ''
+                  }`}
+                >
+                  <div className="col-span-7 md:col-span-8 font-medium text-slate-800 dark:text-slate-100 truncate">
+                    {email}
+                  </div>
+                  <div className="col-span-3 md:col-span-2 text-slate-600 dark:text-slate-300 truncate">
+                    {domain}
+                  </div>
+                  <div className="col-span-2 text-right text-emerald-600 dark:text-emerald-400 font-medium">
+                    Active
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </Card>
+      )}
+
+      {activeTab === 'mailboxes' && !sampleMode && (
         <FromAddressList category={displayCategory} />
       )}
 
       {activeTab === 'settings' && isAdmin && (
-        <UserManagement />
+        sampleMode ? (
+          <Card className="p-6 bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700">
+            <div className="mb-5">
+              <h3 className="text-xl font-semibold text-slate-800 dark:text-slate-100">Root Signals Inboxes</h3>
+              <p className="text-sm text-slate-600 dark:text-slate-300 mt-1">
+                Inbox set based on Ari Heljakka aliases for Root Signals sending domains.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              {ROOT_SIGNALS_SAMPLE_INBOXES.map((email) => {
+                const domain = email.split('@')[1] || ''
+                return (
+                  <div
+                    key={email}
+                    className="flex items-center justify-between rounded-lg border border-slate-200 dark:border-slate-700 px-4 py-3 bg-slate-50/60 dark:bg-slate-800/40"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-sm font-medium text-slate-800 dark:text-slate-100 truncate">{email}</div>
+                      <div className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">Inbox ready</div>
+                    </div>
+                    <span className="text-[11px] font-medium px-2 py-1 rounded-full bg-indigo-100 text-indigo-700 dark:bg-indigo-900/40 dark:text-indigo-300">
+                      {domain}
+                    </span>
+                  </div>
+                )
+              })}
+            </div>
+          </Card>
+        ) : (
+          <UserManagement />
+        )
       )}
     </div>
   )
