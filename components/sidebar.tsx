@@ -1,5 +1,5 @@
 "use client"
-import { BarChart3, Target, Layers, Home, Zap, Database, Plus, MoreVertical, Trash2, Folder } from "lucide-react"
+import { BarChart3, Target, Layers, Home, Zap, Database, Plus, MoreVertical, Trash2, Folder, Sparkles } from "lucide-react"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { cn } from "@/lib/utils"
 import Link from "next/link"
@@ -50,12 +50,15 @@ export function Sidebar() {
     { icon: Zap, label: "Reachify", href: "/reachify-campaigns", color: "bg-green-500", campaignId: "reachify" },
     { icon: Database, label: "PRUSA", href: "/prusa-campaigns", color: "bg-purple-500", campaignId: "prusa" },
     { icon: Database, label: "Cloudlea", href: "/new-campaign-campaigns", color: "bg-orange-500", campaignId: "cloudlea" },
+    { icon: Sparkles, label: "Root Signals", href: "/root-signals-campaigns", color: "bg-teal-500", campaignId: "root-signals" },
   ]
 
-  // Filter campaigns based on user permissions
+  // Filter campaigns based on user permissions (Root Signals is visible to any user with sidebar access)
   const campaignItems = userPermissions 
     ? allCampaignItems.filter(item => 
-        userPermissions.isAdmin || userPermissions.allowedCampaigns.includes(item.campaignId)
+        userPermissions.isAdmin ||
+        item.campaignId === "root-signals" ||
+        userPermissions.allowedCampaigns.includes(item.campaignId)
       )
     : []
 

@@ -19,7 +19,7 @@ export async function GET() {
     const entries = await readdir(appDir, { withFileTypes: true })
     
     // Find all directories ending with '-campaigns' that are not the original ones
-    const originalCampaigns = ['roger-campaigns', 'reachify-campaigns', 'prusa-campaigns', 'unified-campaigns']
+    const originalCampaigns = ['roger-campaigns', 'reachify-campaigns', 'prusa-campaigns', 'unified-campaigns', 'root-signals-campaigns', 'sample-campaigns']
     const customDashboards: DashboardMetadata[] = []
     
     for (const entry of entries) {
